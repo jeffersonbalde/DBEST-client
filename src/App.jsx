@@ -17,6 +17,7 @@ import IctAccountingRoute from "./components/IctAccountingRoute";
 // Public Pages
 import Login from "./pages/Login/Login";
 import Unauthorized from "./pages/Unauthorized";
+import NotFound from "./pages/NotFound";
 
 // Import Layout
 import Layout from "./components/Layout/Layout";
@@ -163,8 +164,8 @@ const AppRoutes = () => {
       {/* Default redirect */}
       <Route path="/" element={<Navigate to="/login" replace />} />
 
-      {/* Catch all route */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Catch all route - 404 Not Found */}
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
