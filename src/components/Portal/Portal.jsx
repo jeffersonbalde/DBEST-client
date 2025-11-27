@@ -1,28 +1,26 @@
-import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
-const Portal = ({ children, containerId = 'portal-root' }) => {
-  const [container, setContainer] = useState(null);
+const Portal = ({ children }) => {
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    let portalContainer = document.getElementById(containerId);
+    setMounted(true);
     
-    if (!portalContainer) {
-      portalContainer = document.createElement('div');
-      portalContainer.id = containerId;
-      document.body.appendChild(portalContainer);
-    }
+    // Prevent body scroll when portal is mounted
+    document.body.style.overflow = 'hidden';
     
-    setContainer(portalContainer);
-
     return () => {
-      if (portalContainer && portalContainer.parentNode) {
-        portalContainer.parentNode.removeChild(portalContainer);
-      }
+      document.body.style.overflow = 'unset';
     };
-  }, [containerId]);
+  }, []);
 
-  return container ? createPortal(children, container) : null;
+  if (!mounted) return null;
+
+  return createPortal(
+    children,
+    document.body
+  );
 };
 
 export default Portal;

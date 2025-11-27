@@ -1,137 +1,170 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import 'sweetalert2/dist/sweetalert2.min.css';
-import Login from './pages/Login/Login';
-import DashboardLayout from './components/Layout/DashboardLayout';
-import PropertyCustodianDashboard from './pages/Dashboard/PropertyCustodianDashboard';
-import TeacherDashboard from './pages/Dashboard/TeacherDashboard';
-import IctDashboard from './pages/Dashboard/IctDashboard';
-import AccountingDashboard from './pages/Dashboard/AccountingDashboard';
-import './App.css';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ToastContainer } from "./services/notificationService";
+import "react-toastify/dist/ReactToastify.css";
+import "sweetalert2/dist/sweetalert2.min.css";
 
-// Menu configurations for each user type
-const propertyCustodianMenu = [
-  { path: '/dashboard/property_custodian', label: 'Inventory Management', icon: 'fa-box' },
-  { path: '/dashboard/property_custodian/reports', label: 'Reports', icon: 'fa-chart-bar' },
-];
+// Route Components
+import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./components/PublicRoute";
+import PropertyCustodianRoute from "./components/PropertyCustodianRoute";
+import TeacherRoute from "./components/TeacherRoute";
+import IctRoute from "./components/IctRoute";
+import AccountingRoute from "./components/AccountingRoute";
+import IctAccountingRoute from "./components/IctAccountingRoute";
 
-const teacherMenu = [
-  { path: '/dashboard/teacher', label: 'My Items', icon: 'fa-box' },
-  { path: '/dashboard/teacher/profile', label: 'My Profile', icon: 'fa-user' },
-];
+// Public Pages
+import Login from "./pages/Login/Login";
+import Unauthorized from "./pages/Unauthorized";
 
-const ictMenu = [
-  { path: '/dashboard/ict', label: 'System Settings', icon: 'fa-cog' },
-  { path: '/dashboard/ict/backups', label: 'Backups', icon: 'fa-database' },
-  { path: '/dashboard/ict/custodians', label: 'Property Custodians', icon: 'fa-users' },
-];
+// Import Layout
+import Layout from "./components/Layout/Layout";
 
-const accountingMenu = [
-  { path: '/dashboard/accounting', label: 'Analytics', icon: 'fa-chart-line' },
-  { path: '/dashboard/accounting/inventory', label: 'Inventory List', icon: 'fa-list' },
-];
+// Dashboard Pages
+import PropertyCustodianDashboard from "./pages/Dashboard/PropertyCustodianDashboard";
+import TeacherDashboard from "./pages/Dashboard/TeacherDashboard";
+import IctDashboard from "./pages/Dashboard/IctDashboard";
+import AccountingDashboard from "./pages/Dashboard/AccountingDashboard";
+import PropertyCustodiansManagement from "./pages/ict/PropertyCustodians/PropertyCustodiansManagement";
+import SchoolsManagement from "./pages/ict/Schools/SchoolsManagement";
+import AccountingManagement from "./pages/accounting/AccountingManagement";
+import Backups from "./pages/ict/Backups/Backups";
+import IctProfile from "./pages/ict/IctProfile/IctProfile";
+import IctSettings from "./pages/ict/IctSettings/IctSettings";
 
-// Protected Route Component
-const ProtectedRoute = ({ children, allowedUserTypes }) => {
-  const { isAuthenticated, userType } = useAuth();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (allowedUserTypes && !allowedUserTypes.includes(userType)) {
-    return <Navigate to={`/dashboard/${userType}`} replace />;
-  }
-
-  return children;
-};
-
-// Get menu based on user type
-const getMenuForUserType = (userType) => {
-  switch (userType) {
-    case 'property_custodian':
-      return propertyCustodianMenu;
-    case 'teacher':
-      return teacherMenu;
-    case 'ict':
-      return ictMenu;
-    case 'accounting':
-      return accountingMenu;
-    default:
-      return [];
-  }
-};
+import "./App.css";
 
 // App Routes Component
 const AppRoutes = () => {
-  const { isAuthenticated, userType } = useAuth();
-
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      
+      {/* Public Routes */}
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <IctProfile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <IctAccountingRoute>
+            <Layout>
+              <IctSettings />
+            </Layout>
+          </IctAccountingRoute>
+        }
+      />
+      <Route
+        path="/backups"
+        element={
+          <IctRoute>
+            <Layout>
+              <Backups />
+            </Layout>
+          </IctRoute>
+        }
+      />
+
+      <Route path="/unauthorized" element={<Unauthorized />} />
+
       {/* Property Custodian Routes */}
       <Route
-        path="/dashboard/property_custodian"
+        path="/custodian"
         element={
-          <ProtectedRoute allowedUserTypes={['property_custodian']}>
-            <DashboardLayout menuItems={getMenuForUserType('property_custodian')}>
+          <PropertyCustodianRoute>
+            <Layout>
               <PropertyCustodianDashboard />
-            </DashboardLayout>
-          </ProtectedRoute>
+            </Layout>
+          </PropertyCustodianRoute>
         }
       />
-      
+
       {/* Teacher Routes */}
       <Route
-        path="/dashboard/teacher"
+        path="/faculty"
         element={
-          <ProtectedRoute allowedUserTypes={['teacher']}>
-            <DashboardLayout menuItems={getMenuForUserType('teacher')}>
+          <TeacherRoute>
+            <Layout>
               <TeacherDashboard />
-            </DashboardLayout>
-          </ProtectedRoute>
+            </Layout>
+          </TeacherRoute>
         }
       />
-      
+
       {/* ICT Routes */}
       <Route
-        path="/dashboard/ict"
+        path="/dashboard"
         element={
-          <ProtectedRoute allowedUserTypes={['ict']}>
-            <DashboardLayout menuItems={getMenuForUserType('ict')}>
+          <IctRoute>
+            <Layout>
               <IctDashboard />
-            </DashboardLayout>
-          </ProtectedRoute>
+            </Layout>
+          </IctRoute>
         }
       />
-      
+      <Route
+        path="/dashboard/ict/custodians"
+        element={
+          <IctRoute>
+            <Layout>
+              <PropertyCustodiansManagement />
+            </Layout>
+          </IctRoute>
+        }
+      />
+      <Route
+        path="/dashboard/ict/schools"
+        element={
+          <IctRoute>
+            <Layout>
+              <SchoolsManagement />
+            </Layout>
+          </IctRoute>
+        }
+      />
+      <Route
+        path="/dashboard/ict/accounting"
+        element={
+          <IctRoute>
+            <Layout>
+              <AccountingManagement />
+            </Layout>
+          </IctRoute>
+        }
+      />
+
       {/* Accounting Routes */}
       <Route
-        path="/dashboard/accounting"
+        path="/finance"
         element={
-          <ProtectedRoute allowedUserTypes={['accounting']}>
-            <DashboardLayout menuItems={getMenuForUserType('accounting')}>
+          <AccountingRoute>
+            <Layout>
               <AccountingDashboard />
-            </DashboardLayout>
-          </ProtectedRoute>
+            </Layout>
+          </AccountingRoute>
         }
       />
-      
+
       {/* Default redirect */}
-      <Route
-        path="/"
-        element={
-          isAuthenticated ? (
-            <Navigate to={`/dashboard/${userType}`} replace />
-          ) : (
-            <Navigate to="/login" replace />
-          )
-        }
-      />
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
+      {/* Catch all route */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 };

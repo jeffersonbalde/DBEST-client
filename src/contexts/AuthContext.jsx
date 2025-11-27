@@ -3,6 +3,9 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 export const AuthContext = createContext();
 
+// Token expiration: 1 day in milliseconds
+const TOKEN_EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 1 day
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,6 +15,26 @@ export const AuthProvider = ({ children }) => {
   const [userType, setUserType] = useState(
     () => localStorage.getItem("user_type") || null
   );
+
+  // Check if token is expired
+  const isTokenExpired = () => {
+    const tokenTimestamp = localStorage.getItem("token_timestamp");
+    if (!tokenTimestamp) return true;
+    
+    const now = new Date().getTime();
+    const tokenTime = parseInt(tokenTimestamp, 10);
+    return (now - tokenTime) > TOKEN_EXPIRATION_TIME;
+  };
+
+  // Clear expired token
+  const clearExpiredToken = () => {
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("user_type");
+    localStorage.removeItem("token_timestamp");
+    setToken(null);
+    setUserType(null);
+    setUser(null);
+  };
 
   // Check authentication on app start
   useEffect(() => {
@@ -23,6 +46,18 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
+
+      // Check if token is expired
+      if (isTokenExpired()) {
+        clearExpiredToken();
+        setLoading(false);
+        return;
+      }
+
+      // Set token and userType immediately so user is considered authenticated
+      // This prevents redirect to login if API call is slow or fails temporarily
+      setToken(storedToken);
+      setUserType(storedUserType);
 
       try {
         const res = await fetch(
@@ -38,19 +73,23 @@ export const AuthProvider = ({ children }) => {
         if (res.ok) {
           const userData = await res.json();
           setUser(userData);
-          setToken(storedToken);
-          setUserType(storedUserType);
         } else {
+          // Only clear token on 401 (Unauthorized) - token is invalid
           if (res.status === 401) {
-            setUser(null);
-            setToken(null);
-            setUserType(null);
-            localStorage.removeItem("access_token");
-            localStorage.removeItem("user_type");
+            clearExpiredToken();
+          } else {
+            // For other errors (500, network issues, etc.), keep the token
+            // User data will be fetched on next successful API call
+            console.warn("Auth check failed with status:", res.status);
+            // Keep token and userType set, but user data might be stale
           }
         }
       } catch (error) {
-        console.error("Auth check failed:", error);
+        // Network errors or other exceptions - don't clear token
+        // Token is still valid based on expiration check
+        console.error("Auth check failed (network error):", error);
+        // Token and userType are already set above, so user remains authenticated
+        // User data will be refreshed on next successful API call
       } finally {
         setLoading(false);
       }
@@ -79,8 +118,11 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || "Login failed");
       }
 
+      // Store token with timestamp for expiration check
+      const timestamp = new Date().getTime();
       localStorage.setItem("access_token", data.token);
       localStorage.setItem("user_type", data.user_type);
+      localStorage.setItem("token_timestamp", timestamp.toString());
 
       setToken(data.token);
       setUser(data.user);
@@ -116,6 +158,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       localStorage.removeItem("access_token");
       localStorage.removeItem("user_type");
+      localStorage.removeItem("token_timestamp");
       setUser(null);
       setToken(null);
       setUserType(null);
@@ -152,6 +195,11 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Compute isAuthenticated with token expiration check
+  // User is authenticated if token exists, isn't expired, and userType is set
+  // User data can be fetched later, so we don't require it for authentication
+  const isAuthenticated = !!token && !!userType && !isTokenExpired();
+
   const value = {
     user,
     login,
@@ -160,7 +208,12 @@ export const AuthProvider = ({ children }) => {
     loading,
     userType,
     refreshUserData,
-    isAuthenticated: !!user && !!token,
+    isAuthenticated,
+    // Role helpers
+    isPropertyCustodian: userType === 'property_custodian',
+    isTeacher: userType === 'teacher',
+    isIct: userType === 'ict',
+    isAccounting: userType === 'accounting',
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

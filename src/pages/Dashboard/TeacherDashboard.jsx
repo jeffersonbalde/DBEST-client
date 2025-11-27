@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import { showToast } from '../../services/notificationService';
-import Loading from '../../components/Loading/Loading';
+import Preloader from '../../components/Preloader';
 import './Dashboard.css';
 
 const TeacherDashboard = () => {
@@ -40,7 +40,7 @@ const TeacherDashboard = () => {
     }
   };
 
-  if (loading) return <Loading fullScreen />;
+  if (loading) return <Preloader />;
 
   return (
     <div className="dashboard-page">

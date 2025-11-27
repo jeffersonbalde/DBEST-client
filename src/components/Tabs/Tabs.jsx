@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Tabs.css';
 
 const Tabs = ({ children, defaultTab = 0 }) => {
   const [activeTab, setActiveTab] = useState(defaultTab);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
   const tabs = React.Children.toArray(children).filter(child => child.type === Tab);
   const tabPanels = React.Children.toArray(children).filter(child => child.type === TabPanel);

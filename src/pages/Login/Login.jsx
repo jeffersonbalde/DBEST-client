@@ -11,6 +11,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { showAlert, showToast } from "../../services/notificationService";
 import loginBackground from "../../assets/loginbg.png";
 import logo from "../../assets/logo.png";
+import { getRoleHomeRoute } from "../../utils/roleRoutes";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -62,7 +63,7 @@ export default function Login() {
         showToast.success(`Welcome back, ${result.user.first_name}!`);
 
         setTimeout(() => {
-          navigate(`/dashboard/${result.user_type}`);
+          navigate(getRoleHomeRoute(result.user_type));
         }, 1500);
       } else {
         showAlert.error(
