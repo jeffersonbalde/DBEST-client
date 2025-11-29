@@ -51,14 +51,47 @@ import MyItems from "./pages/Personnel/MyItems/MyItems";
 import Profile from "./pages/Personnel/Profile/Profile";
 import AccountSettings from "./pages/Personnel/AccountSettings/AccountSettings";
 
+// Accounting Pages
+import MyProfile from "./pages/accounting/MyProfile/MyProfile";
+import AccountingAccountSettings from "./pages/accounting/AccountSettings/AccountSettings";
+import InventoryAnalytics from "./pages/accounting/InventoryAnalytics/InventoryAnalytics";
+import InventoryList from "./pages/accounting/InventoryList/InventoryList";
+
 import "./App.css";
+
+// Profile Router Component - Shows different components based on user type
+const ProfileRouter = () => {
+  const { isIct, isAccounting, isTeacher, isPropertyCustodian } = useAuth();
+
+  if (isIct) {
+    return <IctProfile />;
+  }
+
+  if (isAccounting) {
+    return <MyProfile />;
+  }
+
+  if (isTeacher) {
+    return <Profile />;
+  }
+
+  if (isPropertyCustodian) {
+    return <SchoolProfile />;
+  }
+
+  return <Navigate to="/unauthorized" replace />;
+};
 
 // Settings Router Component - Shows different components based on user type
 const SettingsRouter = () => {
   const { isIct, isAccounting, isTeacher } = useAuth();
 
-  if (isIct || isAccounting) {
+  if (isIct) {
     return <IctSettings />;
+  }
+
+  if (isAccounting) {
+    return <AccountingAccountSettings />;
   }
 
   if (isTeacher) {
@@ -87,7 +120,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Layout>
-              <IctProfile />
+              <ProfileRouter />
             </Layout>
           </ProtectedRoute>
         }
@@ -298,6 +331,26 @@ const AppRoutes = () => {
           <AccountingRoute>
             <Layout>
               <AccountingDashboard />
+            </Layout>
+          </AccountingRoute>
+        }
+      />
+      <Route
+        path="/finance/analytics"
+        element={
+          <AccountingRoute>
+            <Layout>
+              <InventoryAnalytics />
+            </Layout>
+          </AccountingRoute>
+        }
+      />
+      <Route
+        path="/finance/inventory"
+        element={
+          <AccountingRoute>
+            <Layout>
+              <InventoryList />
             </Layout>
           </AccountingRoute>
         }

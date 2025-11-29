@@ -10,6 +10,17 @@ import autoTable from "jspdf-autotable";
 import { useAuth } from "../../../contexts/AuthContext";
 import { showAlert, showToast } from "../../../services/notificationService";
 
+const getAssetImageUrl = (item) => {
+  if (!item?.image_path) return null;
+  const baseUrl = import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
+  let cleanFilename = item.image_path;
+  if (cleanFilename.includes("inventory-assets/")) {
+    cleanFilename = cleanFilename.replace("inventory-assets/", "");
+  }
+  cleanFilename = cleanFilename.split("/").pop();
+  return `${baseUrl.replace(/\/api$/, "")}/storage/inventory-assets/${cleanFilename}`;
+};
+
 const InventoryReports = () => {
   const { token } = useAuth();
 
@@ -92,7 +103,6 @@ const InventoryReports = () => {
       filtered = filtered.filter((item) => {
         const fields = [
           item.name,
-          item.item_code,
           item.category,
           item.brand,
           item.model,
@@ -159,7 +169,7 @@ const InventoryReports = () => {
 
   const TableRowSkeleton = () => (
     <tr className="align-middle" style={{ height: "70px" }}>
-      {[0, 1, 2, 3, 4, 5, 6, 7].map((col) => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((col) => (
         <td key={col}>
           <div className="placeholder-wave mb-1">
             <span
@@ -264,29 +274,32 @@ const InventoryReports = () => {
 
       const tableStartY = doc.lastAutoTable.finalY + 10;
 
+      // Prepare body data
       const body = filteredItems.map((item) => [
-        item.item_code || "-",
         item.name || "-",
         item.category || "-",
-        item.status || "available",
+        item.status || "SERVICEABLE",
         Number(item.quantity || 0),
         Number(item.available_quantity || 0),
+        formatCurrency(Number(item.quantity || 0) * Number(item.unit_price || 0)),
         item.location || "-",
         `${item.brand || ""} ${item.model || ""}`.trim() || "-",
+        (item.image_url || getAssetImageUrl(item)) ? "Yes" : "No",
       ]);
 
       autoTable(doc, {
         startY: tableStartY,
         head: [
           [
-            "Item Code",
             "Name",
             "Category",
             "Status",
             "Qty",
             "Available",
+            "Amount",
             "Location",
             "Brand / Model",
+            "Image",
           ],
         ],
         body,
@@ -296,18 +309,81 @@ const InventoryReports = () => {
           textColor: [255, 255, 255],
           fontStyle: "bold",
         },
-        styles: { fontSize: 8 },
+        styles: { fontSize: 7 },
         columnStyles: {
-          0: { cellWidth: 25 },
-          1: { cellWidth: 45 },
-          2: { cellWidth: 30 },
-          3: { cellWidth: 22 },
-          4: { cellWidth: 15, halign: "right" },
-          5: { cellWidth: 20, halign: "right" },
+          0: { cellWidth: 50 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 15, halign: "right" },
+          4: { cellWidth: 20, halign: "right" },
+          5: { cellWidth: 25, halign: "right" },
           6: { cellWidth: 35 },
           7: { cellWidth: 45 },
+          8: { cellWidth: 20 },
         },
       });
+
+      // Add images section after table (if space allows)
+      let imageY = doc.lastAutoTable.finalY + 10;
+      const itemsWithImages = filteredItems.filter(
+        (item) => item.image_url || getAssetImageUrl(item)
+      );
+      
+      if (itemsWithImages.length > 0 && imageY < 180) {
+        doc.setFontSize(10);
+        doc.text("Item Images", 14, imageY);
+        imageY += 5;
+        
+        let xPos = 14;
+        let yPos = imageY;
+        const imgSize = 30;
+        const spacing = 5;
+        const maxImagesPerPage = 6;
+        
+        // Load and add images sequentially to avoid positioning issues
+        for (let i = 0; i < Math.min(itemsWithImages.length, maxImagesPerPage); i++) {
+          const item = itemsWithImages[i];
+          const imgUrl = item.image_url || getAssetImageUrl(item);
+          
+          if (imgUrl && yPos + imgSize < 280) {
+            try {
+              // Create image element and load it
+              const img = new Image();
+              img.crossOrigin = "anonymous";
+              
+              await new Promise((resolve, reject) => {
+                img.onload = () => {
+                  try {
+                    doc.addImage(img, "JPEG", xPos, yPos, imgSize, imgSize);
+                    doc.setFontSize(6);
+                    const itemName = item.name?.substring(0, 15) || "Item";
+                    doc.text(itemName, xPos, yPos + imgSize + 3);
+                    
+                    xPos += imgSize + spacing;
+                    if (xPos + imgSize > 280) {
+                      xPos = 14;
+                      yPos += imgSize + 15;
+                    }
+                    resolve();
+                  } catch (e) {
+                    console.warn("Could not add image to PDF:", e);
+                    resolve(); // Continue even if image fails
+                  }
+                };
+                img.onerror = () => {
+                  resolve(); // Continue even if image fails to load
+                };
+                img.src = imgUrl;
+                
+                // Timeout after 3 seconds
+                setTimeout(() => resolve(), 3000);
+              });
+            } catch (e) {
+              console.warn("Error processing image:", e);
+            }
+          }
+        }
+      }
 
       showAlert.close();
       doc.save("inventory-report.pdf");
@@ -335,31 +411,33 @@ const InventoryReports = () => {
       );
 
       const header = [
-        "Item Code",
         "Name",
         "Category",
         "Status",
         "Quantity",
         "Available Quantity",
+        "Amount",
         "Location",
         "Brand",
         "Model",
         "Serial Number",
         "Supplier",
+        "Image URL",
       ];
 
       const rows = filteredItems.map((item) => [
-        item.item_code || "",
         item.name || "",
         item.category || "",
-        item.status || "available",
+        item.status || "SERVICEABLE",
         item.quantity ?? 0,
         item.available_quantity ?? 0,
+        formatCurrency(Number(item.quantity || 0) * Number(item.unit_price || 0)),
         item.location || "",
         item.brand || "",
         item.model || "",
         item.serial_number || "",
         item.supplier || "",
+        item.image_url || getAssetImageUrl(item) || "",
       ]);
 
       const csvLines = [
@@ -627,7 +705,7 @@ const InventoryReports = () => {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Search by name, code, serial number, supplier..."
+                  placeholder="Search by name, category, serial number, supplier..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   disabled={loading}
@@ -658,10 +736,10 @@ const InventoryReports = () => {
                 }}
               >
                 <option value="all">All Status</option>
-                <option value="available">Available</option>
-                <option value="assigned">Assigned</option>
-                <option value="maintenance">Maintenance</option>
-                <option value="disposed">Disposed</option>
+                <option value="SERVICEABLE">Serviceable</option>
+                <option value="UNSERVICEABLE">Unserviceable</option>
+                <option value="NEEDS REPAIR">Needs Repair</option>
+                <option value="MISSING/LOST">Missing/Lost</option>
               </select>
             </div>
             <div className="col-md-2">
@@ -754,14 +832,15 @@ const InventoryReports = () => {
                     <th className="small fw-semibold" style={{ width: "60px" }}>
                       #
                     </th>
-                    <th className="small fw-semibold">Item Code</th>
                     <th className="small fw-semibold">Name</th>
                     <th className="small fw-semibold">Category</th>
                     <th className="small fw-semibold">Status</th>
                     <th className="small fw-semibold text-end">Qty</th>
                     <th className="small fw-semibold text-end">Available</th>
+                    <th className="small fw-semibold text-end">Amount</th>
                     <th className="small fw-semibold">Location</th>
                     <th className="small fw-semibold">Brand / Model</th>
+                    <th className="small fw-semibold">Image</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -811,14 +890,15 @@ const InventoryReports = () => {
                       <th className="small fw-semibold" style={{ width: "60px" }}>
                         #
                       </th>
-                      <th className="small fw-semibold">Item Code</th>
                       <th className="small fw-semibold">Name</th>
                       <th className="small fw-semibold">Category</th>
                       <th className="small fw-semibold">Status</th>
                       <th className="small fw-semibold text-end">Qty</th>
                       <th className="small fw-semibold text-end">Available</th>
+                      <th className="small fw-semibold text-end">Amount</th>
                       <th className="small fw-semibold">Location</th>
                       <th className="small fw-semibold">Brand / Model</th>
+                      <th className="small fw-semibold">Image</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -827,14 +907,6 @@ const InventoryReports = () => {
                         <td className="fw-semibold text-muted small">
                           {startIndex + idx + 1}
                         </td>
-                        <td className="text-truncate" style={{ maxWidth: 120 }}>
-                          <span
-                            className="fw-semibold"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {item.item_code || "—"}
-                          </span>
-                        </td>
                         <td className="text-truncate" style={{ maxWidth: 200 }}>
                           {item.name || "Unnamed Item"}
                         </td>
@@ -842,8 +914,20 @@ const InventoryReports = () => {
                           {item.category || "Uncategorized"}
                         </td>
                         <td>
-                          <span className="badge bg-primary-subtle text-primary border border-primary-subtle text-capitalize">
-                            {item.status || "available"}
+                          <span
+                            className={`badge ${
+                              item.status === "SERVICEABLE"
+                                ? "bg-success bg-opacity-10 text-success border border-success"
+                                : item.status === "UNSERVICEABLE"
+                                ? "bg-danger bg-opacity-10 text-danger border border-danger-subtle"
+                                : item.status === "NEEDS REPAIR"
+                                ? "bg-warning bg-opacity-10 text-warning border border-warning-subtle"
+                                : item.status === "MISSING/LOST"
+                                ? "bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle"
+                                : "bg-primary-subtle text-primary border border-primary-subtle"
+                            }`}
+                          >
+                            {item.status || "SERVICEABLE"}
                           </span>
                         </td>
                         <td className="text-end">
@@ -852,12 +936,39 @@ const InventoryReports = () => {
                         <td className="text-end">
                           {Number(item.available_quantity || 0).toLocaleString()}
                         </td>
+                        <td className="text-end">
+                          <span className="fw-semibold" style={{ color: "var(--text-primary)" }}>
+                            {formatCurrency(
+                              Number(item.quantity || 0) * Number(item.unit_price || 0)
+                            )}
+                          </span>
+                        </td>
                         <td className="text-truncate" style={{ maxWidth: 180 }}>
                           {item.location || "—"}
                         </td>
                         <td className="text-truncate" style={{ maxWidth: 220 }}>
                           {`${item.brand || ""} ${item.model || ""}`.trim() ||
                             "—"}
+                        </td>
+                        <td style={{ width: "80px" }}>
+                          {item.image_url || item.image_path ? (
+                            <img
+                              src={item.image_url || getAssetImageUrl(item)}
+                              alt={item.name}
+                              style={{
+                                width: "50px",
+                                height: "50px",
+                                objectFit: "cover",
+                                borderRadius: "4px",
+                                border: "1px solid #e1e6ef",
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                              }}
+                            />
+                          ) : (
+                            <span className="text-muted small">No image</span>
+                          )}
                         </td>
                       </tr>
                     ))}

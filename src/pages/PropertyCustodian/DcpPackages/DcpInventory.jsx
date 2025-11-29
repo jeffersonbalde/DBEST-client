@@ -41,11 +41,10 @@ const CATEGORY_OPTIONS = [
 ];
 
 const CONDITION_OPTIONS = [
-  "Working",
-  "For Repair",
-  "For Part Replacement",
-  "Unrepairable",
-  "Lost",
+  "SERVICEABLE",
+  "UNSERVICEABLE",
+  "NEEDS REPAIR",
+  "MISSING/LOST",
 ];
 
 const VALIDATION_OPTIONS = ["Unverified", "Verified"];
@@ -64,7 +63,7 @@ const DEFAULT_FORM = {
   quantity: 1,
   property_no: "",
   personnel_id: "",
-  condition_status: "Working",
+  condition_status: "SERVICEABLE",
   last_checked_at: "",
   validation_status: "Unverified",
   remarks: "",
@@ -350,7 +349,7 @@ const DcpInventory = () => {
   // Stats for top cards – mirror SchoolsManagement style
   const totalItems = items.length;
   const totalWorking = items.filter(
-    (it) => it.condition_status === "Working"
+    (it) => it.condition_status === "SERVICEABLE" || it.condition_status === "Working"
   ).length;
   const filteredCount = filteredItems.length;
 
@@ -1011,7 +1010,24 @@ const DcpInventory = () => {
                         </td>
                         <td>{item.serial_number}</td>
                         <td>
-                          <span className="text-success fw-semibold">
+                          <span
+                            className={`badge ${
+                              item.condition_status === "SERVICEABLE" ||
+                              item.condition_status === "Working"
+                                ? "bg-success bg-opacity-10 text-success border border-success"
+                                : item.condition_status === "UNSERVICEABLE" ||
+                                  item.condition_status === "Unrepairable"
+                                ? "bg-danger bg-opacity-10 text-danger border border-danger-subtle"
+                                : item.condition_status === "NEEDS REPAIR" ||
+                                  item.condition_status === "For Repair" ||
+                                  item.condition_status === "For Part Replacement"
+                                ? "bg-warning bg-opacity-10 text-warning border border-warning-subtle"
+                                : item.condition_status === "MISSING/LOST" ||
+                                  item.condition_status === "Lost"
+                                ? "bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle"
+                                : "bg-success bg-opacity-10 text-success border border-success"
+                            }`}
+                          >
                             {item.condition_status}
                           </span>
                         </td>

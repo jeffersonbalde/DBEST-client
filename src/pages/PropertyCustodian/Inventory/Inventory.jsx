@@ -13,10 +13,10 @@ import InventoryCategories from "./InventoryCategories";
 import ICSModal from "../../../components/ICSModal/ICSModal";
 
 const STATUS_OPTIONS = [
-  { value: "available", label: "Available", color: "#22c55e" },
-  { value: "assigned", label: "Assigned", color: "#0ea5e9" },
-  { value: "maintenance", label: "Maintenance", color: "#f59e0b" },
-  { value: "disposed", label: "Disposed", color: "#ef4444" },
+  { value: "SERVICEABLE", label: "Serviceable", color: "#22c55e" },
+  { value: "UNSERVICEABLE", label: "Unserviceable", color: "#ef4444" },
+  { value: "NEEDS REPAIR", label: "Needs Repair", color: "#f59e0b" },
+  { value: "MISSING/LOST", label: "Missing/Lost", color: "#6b7280" },
 ];
 
 const DEFAULT_FORM = {
@@ -31,7 +31,7 @@ const DEFAULT_FORM = {
   available_quantity: 0,
   unit_price: "",
   location: "",
-  status: "available",
+  status: "SERVICEABLE",
   tracking_mode: "detailed",
   purchase_date: "",
   warranty_expiry: "",
@@ -41,25 +41,25 @@ const DEFAULT_FORM = {
 };
 
 const statusMeta = {
-  available: {
-    label: "Available",
+  SERVICEABLE: {
+    label: "Serviceable",
     className:
       "badge bg-success bg-opacity-10 text-success border border-success",
   },
-  assigned: {
-    label: "Assigned",
+  UNSERVICEABLE: {
+    label: "Unserviceable",
     className:
-      "badge bg-info bg-opacity-10 text-info border border-info-subtle",
+      "badge bg-danger bg-opacity-10 text-danger border border-danger-subtle",
   },
-  maintenance: {
-    label: "Maintenance",
+  "NEEDS REPAIR": {
+    label: "Needs Repair",
     className:
       "badge bg-warning bg-opacity-10 text-warning border border-warning-subtle",
   },
-  disposed: {
-    label: "Disposed",
+  "MISSING/LOST": {
+    label: "Missing/Lost",
     className:
-      "badge bg-danger bg-opacity-10 text-danger border border-danger-subtle",
+      "badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle",
   },
 };
 
@@ -448,7 +448,7 @@ const Inventory = () => {
   const quickStats = useMemo(() => {
     const statusCounts = filteredItems.reduce(
       (acc, item) => {
-        const status = item.status || "available";
+        const status = item.status || "SERVICEABLE";
         acc[status] = (acc[status] || 0) + 1;
         acc.totalQuantity += Number(item.quantity || 0);
         acc.availableQuantity += Number(item.available_quantity || 0);
@@ -782,7 +782,7 @@ const Inventory = () => {
   ];
 
   const renderStatusBadge = (status) => {
-    const meta = statusMeta[status] || statusMeta["available"];
+    const meta = statusMeta[status] || statusMeta["SERVICEABLE"];
     return (
       <span className={meta.className} style={{ fontSize: "0.8rem" }}>
         {meta.label}

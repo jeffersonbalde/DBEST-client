@@ -9,22 +9,6 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useAuth } from "../../../contexts/AuthContext";
 import { showAlert, showToast } from "../../../services/notificationService";
-import ItemDetailsModal from "./ItemDetailsModal";
-
-const formatDateTime = (value) => {
-  if (!value) return "N/A";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Invalid date";
-  }
-  return date.toLocaleString("en-PH", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 const formatDate = (value) => {
   if (!value) return "N/A";
@@ -39,6 +23,12 @@ const formatDate = (value) => {
   });
 };
 
+const formatCurrency = (value = 0) =>
+  `₱${Number(value || 0).toLocaleString("en-PH", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
 const TableRowSkeleton = () => (
   <tr className="align-middle" style={{ height: "70px" }}>
     <td className="text-center">
@@ -46,7 +36,7 @@ const TableRowSkeleton = () => (
         <span className="placeholder col-4" style={{ height: 16 }}></span>
       </div>
     </td>
-    {[...Array(6)].map((_, idx) => (
+    {[...Array(8)].map((_, idx) => (
       <td key={idx}>
         <div className="placeholder-wave mb-1">
           <span className="placeholder col-8" style={{ height: 16 }}></span>
@@ -95,32 +85,35 @@ const EmptyState = () => (
       ></i>
     </div>
     <h5 className="mb-2" style={{ color: "var(--text-muted)" }}>
-      No Assigned Items
+      No Inventory Items
     </h5>
     <p className="mb-3 small" style={{ color: "var(--text-muted)" }}>
-      You don't have any items assigned to you yet. Contact your Property
-      Custodian for assignments.
+      No inventory items found matching your filters.
     </p>
   </div>
 );
 
-const MyItems = () => {
-  const { token, user } = useAuth();
+const InventoryList = () => {
+  const { token } = useAuth();
   const [items, setItems] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [filteredItems, setFilteredItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLock, setActionLock] = useState(false);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [exportLoading, setExportLoading] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("all"); // "all", "school", "dcp"
+  const [schoolFilter, setSchoolFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortField, setSortField] = useState("created_at");
   const [sortDirection, setSortDirection] = useState("desc");
-  const [exportLoading, setExportLoading] = useState(null);
+
+  const [schools, setSchools] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   const apiBaseRef = useRef(
     (import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api").replace(
@@ -129,125 +122,66 @@ const MyItems = () => {
     )
   );
 
-  const fetchMyItems = useCallback(async () => {
+  const fetchInventory = useCallback(async () => {
     if (!token) return;
     setLoading(true);
     try {
       const baseUrl = apiBaseRef.current;
+      let allFetchedItems = [];
+      let page = 1;
+      let hasMore = true;
 
-      // First, get the current personnel/teacher ID
-      const personnelResponse = await fetch(`${baseUrl}/teacher/personnel/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
-
-      let personnelId = null;
-      if (personnelResponse.ok) {
-        const personnelData = await personnelResponse.json();
-        const personnel = personnelData.personnel || personnelData;
-        personnelId = personnel?.id;
-      }
-
-      if (!personnelId) {
-        console.error("Could not get personnel ID");
-        setItems([]);
-        setLoading(false);
-        return;
-      }
-
-      // Fetch all School Inventory items and filter by personnel_id
-      // Following the exact same approach as PersonnelDetailsModal.jsx
-      const schoolResponse = await fetch(
-        `${baseUrl}/property-custodian/inventory?per_page=1000`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
-
-      // Fetch all DCP Inventory items and filter by personnel_id
-      const dcpResponse = await fetch(
-        `${baseUrl}/property-custodian/dcp-inventory?personnel_id=${personnelId}&per_page=1000`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            Accept: "application/json",
-          },
-        }
-      );
-
-      // Process School Inventory - filter items assigned to this personnel
-      let schoolItems = [];
-      if (schoolResponse.ok) {
-        const schoolData = await schoolResponse.json();
-        let allSchoolItems = [];
-        if (schoolData.data && Array.isArray(schoolData.data)) {
-          allSchoolItems = schoolData.data;
-        } else if (Array.isArray(schoolData)) {
-          allSchoolItems = schoolData;
-        } else if (schoolData.items && Array.isArray(schoolData.items)) {
-          allSchoolItems = schoolData.items;
-        }
-        // Filter by personnel_id - same as PersonnelDetailsModal
-        const assignedSchoolItems = allSchoolItems.filter(
-          (item) => item.personnel_id === personnelId
+      // Fetch all pages
+      while (hasMore) {
+        const response = await fetch(
+          `${baseUrl}/accounting/inventory?per_page=100&page=${page}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              Accept: "application/json",
+            },
+          }
         );
-        schoolItems = assignedSchoolItems.map((item) => ({
-          ...item,
-          type: "school",
-          source: "School Inventory",
-          assigned_at: item.assigned_at || item.created_at,
-        }));
-      } else {
-        console.log("Could not fetch School Inventory items");
-      }
 
-      // Process DCP Inventory - filter items assigned to this personnel
-      let dcpItems = [];
-      if (dcpResponse.ok) {
-        const dcpData = await dcpResponse.json();
-        let allDcpItems = [];
-        if (dcpData.data && Array.isArray(dcpData.data)) {
-          allDcpItems = dcpData.data;
-        } else if (Array.isArray(dcpData)) {
-          allDcpItems = dcpData;
-        } else if (dcpData.items && Array.isArray(dcpData.items)) {
-          allDcpItems = dcpData.items;
+        if (!response.ok) {
+          throw new Error("Failed to load inventory");
         }
-        // Filter by personnel_id - same as PersonnelDetailsModal
-        const assignedDcpItems = allDcpItems.filter(
-          (item) => item.personnel_id === personnelId
-        );
-        // Map DCP items - DCP uses 'description' for name and 'manufacturer' for brand
-        dcpItems = assignedDcpItems.map((item) => ({
-          ...item,
-          // Map DCP fields to match School Inventory structure
-          name: item.description || item.name, // DCP uses 'description' as the item name
-          brand: item.manufacturer || item.brand, // DCP uses 'manufacturer' as brand
-          category: item.category || "Uncategorized",
-          serial_number: item.serial_number || "N/A",
-          type: "dcp",
-          source: "DCP Package Inventory",
-          assigned_at: item.assigned_at || item.created_at,
-        }));
-      } else {
-        console.log("Could not fetch DCP Inventory items");
+
+        const data = await response.json();
+        if (data.data && Array.isArray(data.data)) {
+          allFetchedItems = [...allFetchedItems, ...data.data];
+          hasMore = page < (data.last_page || 1);
+          page++;
+        } else {
+          hasMore = false;
+        }
       }
 
-      // Combine all items - same structure as PersonnelDetailsModal
-      const allItems = [...schoolItems, ...dcpItems];
-      setItems(allItems);
+      setAllItems(allFetchedItems);
+      setItems(allFetchedItems);
+
+      // Extract unique schools and categories
+      const uniqueSchools = [
+        ...new Set(
+          allFetchedItems.map((item) => item.school_name).filter(Boolean)
+        ),
+      ].sort();
+      const uniqueCategories = [
+        ...new Set(
+          allFetchedItems.map((item) => item.category).filter(Boolean)
+        ),
+      ].sort();
+
+      setSchools(uniqueSchools);
+      setCategories(uniqueCategories);
     } catch (error) {
-      console.error("Error fetching assigned items:", error);
+      console.error("Error fetching inventory:", error);
       showAlert.error(
         "Error",
-        error.message || "Unable to load your assigned items"
+        error.message || "Unable to load inventory items"
       );
       setItems([]);
+      setAllItems([]);
     } finally {
       setLoading(false);
     }
@@ -255,9 +189,9 @@ const MyItems = () => {
 
   useEffect(() => {
     if (token) {
-      fetchMyItems();
+      fetchInventory();
     }
-  }, [token, fetchMyItems]);
+  }, [token, fetchInventory]);
 
   const filterAndSortItems = useCallback(() => {
     let list = [...items];
@@ -271,9 +205,11 @@ const MyItems = () => {
           item.description,
           item.category,
           item.serial_number,
-          item.property_no,
+          item.item_code,
           item.brand,
           item.model,
+          item.school_name,
+          item.personnel?.full_name,
         ];
         return fields.some(
           (field) => field && String(field).toLowerCase().includes(term)
@@ -281,9 +217,14 @@ const MyItems = () => {
       });
     }
 
-    // Source filter
-    if (sourceFilter !== "all") {
-      list = list.filter((item) => item.type === sourceFilter);
+    // School filter
+    if (schoolFilter !== "all") {
+      list = list.filter((item) => item.school_name === schoolFilter);
+    }
+
+    // Category filter
+    if (categoryFilter !== "all") {
+      list = list.filter((item) => item.category === categoryFilter);
     }
 
     // Status filter
@@ -310,12 +251,17 @@ const MyItems = () => {
       });
     }
 
+    // Source filter
+    if (sourceFilter !== "all") {
+      list = list.filter((item) => item.type === sourceFilter);
+    }
+
     // Sorting
     list.sort((a, b) => {
       let aValue = a[sortField];
       let bValue = b[sortField];
 
-      if (sortField === "created_at" || sortField === "assigned_at") {
+      if (sortField === "created_at" || sortField === "updated_at") {
         aValue = aValue ? new Date(aValue) : new Date(0);
         bValue = bValue ? new Date(bValue) : new Date(0);
         if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
@@ -334,7 +280,16 @@ const MyItems = () => {
     });
 
     setFilteredItems(list);
-  }, [items, searchTerm, sourceFilter, statusFilter, sortField, sortDirection]);
+  }, [
+    items,
+    searchTerm,
+    schoolFilter,
+    categoryFilter,
+    statusFilter,
+    sourceFilter,
+    sortField,
+    sortDirection,
+  ]);
 
   useEffect(() => {
     filterAndSortItems();
@@ -342,7 +297,14 @@ const MyItems = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, sourceFilter, statusFilter, itemsPerPage]);
+  }, [
+    searchTerm,
+    schoolFilter,
+    categoryFilter,
+    statusFilter,
+    sourceFilter,
+    itemsPerPage,
+  ]);
 
   const totalPages = Math.max(
     1,
@@ -370,17 +332,11 @@ const MyItems = () => {
   };
 
   const refreshData = useCallback(async () => {
-    await fetchMyItems();
-    showToast.info("Items refreshed successfully");
-  }, [fetchMyItems]);
+    await fetchInventory();
+    showToast.info("Inventory refreshed successfully");
+  }, [fetchInventory]);
 
-  const formatCurrency = (value = 0) =>
-    `₱${Number(value || 0).toLocaleString("en-PH", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-
-  const exportMyItemsToPdf = async () => {
+  const exportToPdf = async () => {
     if (!filteredItems.length) {
       showToast.warning("No items to export.");
       return;
@@ -390,7 +346,7 @@ const MyItems = () => {
     try {
       showAlert.loading(
         "Generating PDF",
-        "Please wait while we generate your assigned items report..."
+        "Please wait while we generate the inventory report..."
       );
 
       const doc = new jsPDF("l", "mm", "a4");
@@ -404,62 +360,48 @@ const MyItems = () => {
 
       doc.setFontSize(16);
       doc.setTextColor(14, 37, 75);
-      doc.text("MY ASSIGNED ITEMS REPORT", 148, 15, { align: "center" });
+      doc.text("INVENTORY REPORT", 148, 15, { align: "center" });
 
       doc.setFontSize(10);
       doc.setTextColor(100, 100, 100);
       doc.text("DBEST Inventory System", 148, 22, { align: "center" });
       doc.text(`Generated on: ${generatedDate}`, 14, 30);
 
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text("SUMMARY", 14, 40);
+      const body = filteredItems.map((item) => {
+        const quantity = item.quantity || 1;
+        const unitPrice = item.unit_price || item.unit_value || 0;
+        const amount = quantity * unitPrice;
 
-      const summaryData = [
-        ["Total Items", stats.totalItems.toString()],
-        ["School Inventory", stats.schoolItems.toString()],
-        ["DCP Packages", stats.dcpItems.toString()],
-        ["Available Items", stats.availableItems.toString()],
-      ];
-
-      autoTable(doc, {
-        startY: 44,
-        head: [["Metric", "Value"]],
-        body: summaryData,
-        theme: "grid",
-        headStyles: {
-          fillColor: [14, 37, 75],
-          textColor: [255, 255, 255],
-          fontStyle: "bold",
-        },
-        styles: { fontSize: 9 },
+        return [
+          item.name || item.description || "-",
+          item.category || "-",
+          item.status || item.condition_status || "-",
+          quantity,
+          item.available_quantity !== undefined
+            ? item.available_quantity
+            : quantity,
+          item.location || "-",
+          item.brand || item.manufacturer || "-",
+          item.model || "-",
+          item.serial_number || "-",
+          formatCurrency(amount),
+        ];
       });
 
-      const tableStartY = doc.lastAutoTable.finalY + 10;
-
-      const body = filteredItems.map((item) => [
-        item.source || "-",
-        item.name || item.description || "-",
-        item.category || "-",
-        item.serial_number || "-",
-        `${item.quantity || 1} ${item.unit_of_measure || "pcs"}`,
-        item.status || item.condition_status || "-",
-        item.assigned_at
-          ? new Date(item.assigned_at).toLocaleDateString("en-PH")
-          : "-",
-      ]);
-
       autoTable(doc, {
-        startY: tableStartY,
+        startY: 40,
         head: [
           [
-            "Source",
-            "Item Name",
+            "Name",
             "Category",
-            "Serial Number",
-            "Quantity",
             "Status",
-            "Assigned Date",
+            "Quantity",
+            "Available",
+            "Location",
+            "Brand",
+            "Model",
+            "Serial Number",
+            "Amount",
           ],
         ],
         body,
@@ -469,31 +411,34 @@ const MyItems = () => {
           textColor: [255, 255, 255],
           fontStyle: "bold",
         },
-        styles: { fontSize: 8 },
+        styles: { fontSize: 7 },
         columnStyles: {
-          0: { cellWidth: 30 },
-          1: { cellWidth: 50 },
-          2: { cellWidth: 35 },
-          3: { cellWidth: 35 },
-          4: { cellWidth: 25 },
-          5: { cellWidth: 25 },
+          0: { cellWidth: 45 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 25 },
+          3: { cellWidth: 18, halign: "right" },
+          4: { cellWidth: 18, halign: "right" },
+          5: { cellWidth: 30 },
           6: { cellWidth: 30 },
+          7: { cellWidth: 30 },
+          8: { cellWidth: 30 },
+          9: { cellWidth: 30, halign: "right" },
         },
       });
 
       showAlert.close();
-      doc.save("my-assigned-items-report.pdf");
-      showToast.success("Assigned items exported as PDF");
+      doc.save("inventory-report.pdf");
+      showToast.success("Inventory exported as PDF");
     } catch (error) {
       console.error("PDF export error:", error);
       showAlert.close();
-      showToast.error("Failed to export items as PDF");
+      showToast.error("Failed to export inventory as PDF");
     } finally {
       setExportLoading(null);
     }
   };
 
-  const exportMyItemsToCsv = async () => {
+  const exportToCsv = async () => {
     if (!filteredItems.length) {
       showToast.warning("No items to export.");
       return;
@@ -503,36 +448,42 @@ const MyItems = () => {
     try {
       showAlert.loading(
         "Generating CSV",
-        "Please wait while we generate your assigned items report..."
+        "Please wait while we generate the inventory report..."
       );
 
       const header = [
-        "Source",
-        "Item Name",
+        "Name",
         "Category",
-        "Serial Number",
-        "Quantity",
-        "Unit of Measure",
         "Status",
+        "Quantity",
+        "Available",
+        "Location",
         "Brand",
         "Model",
-        "Assigned Date",
+        "Serial Number",
+        "Amount",
       ];
 
-      const rows = filteredItems.map((item) => [
-        item.source || "",
-        item.name || item.description || "",
-        item.category || "",
-        item.serial_number || "",
-        item.quantity ?? 1,
-        item.unit_of_measure || "pcs",
-        item.status || item.condition_status || "",
-        item.brand || item.manufacturer || "",
-        item.model || "",
-        item.assigned_at
-          ? new Date(item.assigned_at).toLocaleDateString("en-PH")
-          : "",
-      ]);
+      const rows = filteredItems.map((item) => {
+        const quantity = item.quantity || 1;
+        const unitPrice = item.unit_price || item.unit_value || 0;
+        const amount = quantity * unitPrice;
+
+        return [
+          item.name || item.description || "",
+          item.category || "",
+          item.status || item.condition_status || "",
+          quantity,
+          item.available_quantity !== undefined
+            ? item.available_quantity
+            : quantity,
+          item.location || "",
+          item.brand || item.manufacturer || "",
+          item.model || "",
+          item.serial_number || "",
+          formatCurrency(amount),
+        ];
+      });
 
       const csvLines = [
         header.join(","),
@@ -556,18 +507,18 @@ const MyItems = () => {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "my-assigned-items-report.csv";
+      a.download = "inventory-report.csv";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
       showAlert.close();
-      showToast.success("Assigned items exported as Excel/CSV");
+      showToast.success("Inventory exported as Excel/CSV");
     } catch (error) {
       console.error("CSV export error:", error);
       showAlert.close();
-      showToast.error("Failed to export items as Excel/CSV");
+      showToast.error("Failed to export inventory as Excel/CSV");
     } finally {
       setExportLoading(null);
     }
@@ -578,22 +529,28 @@ const MyItems = () => {
     const totalItems = items.length;
     const schoolItems = items.filter((item) => item.type === "school").length;
     const dcpItems = items.filter((item) => item.type === "dcp").length;
-    const availableItems = items.filter(
-      (item) =>
-        (item.status === "SERVICEABLE" || item.condition_status === "Working") &&
-        item.type === "school"
-    ).length;
+    const totalQuantity = items.reduce(
+      (sum, item) => sum + (Number(item.quantity) || 1),
+      0
+    );
+    const totalValue = items.reduce((sum, item) => {
+      const quantity = Number(item.quantity) || 1;
+      const unitPrice = Number(item.unit_price || item.unit_value || 0);
+      const itemValue = quantity * unitPrice;
+      return sum + itemValue;
+    }, 0);
 
     return {
       totalItems,
       schoolItems,
       dcpItems,
-      availableItems,
+      totalQuantity,
+      totalValue,
     };
   }, [items]);
 
   return (
-    <div className="container-fluid px-3 py-2 my-items-container fadeIn">
+    <div className="container-fluid px-3 py-2 inventory-list-container fadeIn">
       {/* Page Header */}
       <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-3">
         <div className="flex-grow-1 mb-2 mb-md-0">
@@ -601,17 +558,16 @@ const MyItems = () => {
             className="h4 mb-1 fw-bold"
             style={{ color: "var(--text-primary)" }}
           >
-            My Assigned Items
+            Inventory List
           </h1>
           <p className="mb-0 small" style={{ color: "var(--text-muted)" }}>
-            View and manage items assigned to you from School Inventory and DCP
-            Packages
+            View and manage all inventory items across all schools
           </p>
         </div>
         <div className="d-flex align-items-center gap-2 flex-wrap">
           <button
             className="btn btn-sm btn-danger text-white"
-            onClick={exportMyItemsToPdf}
+            onClick={exportToPdf}
             disabled={
               loading || exportLoading === "pdf" || filteredItems.length === 0
             }
@@ -644,7 +600,7 @@ const MyItems = () => {
           </button>
           <button
             className="btn btn-sm btn-success text-white"
-            onClick={exportMyItemsToCsv}
+            onClick={exportToCsv}
             disabled={
               loading || exportLoading === "csv" || filteredItems.length === 0
             }
@@ -755,18 +711,18 @@ const MyItems = () => {
                       className="text-xs fw-semibold text-uppercase mb-1"
                       style={{ color: "var(--info-color)" }}
                     >
-                      School Inventory
+                      Total Value
                     </div>
                     <div
                       className="h4 mb-0 fw-bold"
                       style={{ color: "var(--info-color)" }}
                     >
-                      {stats.schoolItems}
+                      {formatCurrency(stats.totalValue)}
                     </div>
                   </div>
                   <div className="col-auto">
                     <i
-                      className="fas fa-school fa-2x"
+                      className="fas fa-peso-sign fa-2x"
                       style={{
                         color: "var(--info-light)",
                         opacity: 0.7,
@@ -790,18 +746,18 @@ const MyItems = () => {
                       className="text-xs fw-semibold text-uppercase mb-1"
                       style={{ color: "var(--success-color)" }}
                     >
-                      DCP Packages
+                      Total Quantity
                     </div>
                     <div
                       className="h4 mb-0 fw-bold"
                       style={{ color: "var(--success-color)" }}
                     >
-                      {stats.dcpItems}
+                      {stats.totalQuantity.toLocaleString()}
                     </div>
                   </div>
                   <div className="col-auto">
                     <i
-                      className="fas fa-laptop fa-2x"
+                      className="fas fa-layer-group fa-2x"
                       style={{
                         color: "var(--success-light)",
                         opacity: 0.7,
@@ -825,18 +781,18 @@ const MyItems = () => {
                       className="text-xs fw-semibold text-uppercase mb-1"
                       style={{ color: "var(--warning-color)" }}
                     >
-                      Available
+                      Filtered Results
                     </div>
                     <div
                       className="h4 mb-0 fw-bold"
                       style={{ color: "var(--warning-color)" }}
                     >
-                      {stats.availableItems}
+                      {filteredItems.length}
                     </div>
                   </div>
                   <div className="col-auto">
                     <i
-                      className="fas fa-check-circle fa-2x"
+                      className="fas fa-filter fa-2x"
                       style={{
                         color: "var(--warning-light)",
                         opacity: 0.7,
@@ -857,7 +813,7 @@ const MyItems = () => {
       >
         <div className="card-body p-3">
           <div className="row g-3 align-items-center flex-wrap">
-            <div className="col-12 col-lg-6 d-flex flex-column">
+            <div className="col-12 col-lg-4 d-flex flex-column">
               <label
                 className="form-label small fw-semibold mb-1"
                 style={{ color: "var(--text-muted)" }}
@@ -878,7 +834,7 @@ const MyItems = () => {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Search by name, category, serial number, or description"
+                  placeholder="Search by name, category, serial number, school, or personnel"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   disabled={loading || actionLock}
@@ -923,7 +879,33 @@ const MyItems = () => {
                 )}
               </div>
             </div>
-            <div className="col-12 col-sm-6 col-md-3 col-lg-3 d-flex flex-column">
+            <div className="col-12 col-sm-6 col-md-3 col-lg-2 d-flex flex-column">
+              <label
+                className="form-label small fw-semibold mb-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                School
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={schoolFilter}
+                onChange={(e) => setSchoolFilter(e.target.value)}
+                disabled={loading || actionLock}
+                style={{
+                  backgroundColor: "var(--input-bg)",
+                  borderColor: "var(--input-border)",
+                  color: "var(--input-text)",
+                }}
+              >
+                <option value="all">All Schools</option>
+                {schools.map((school) => (
+                  <option key={school} value={school}>
+                    {school}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-12 col-sm-6 col-md-3 col-lg-2 d-flex flex-column">
               <label
                 className="form-label small fw-semibold mb-1"
                 style={{ color: "var(--text-muted)" }}
@@ -946,7 +928,33 @@ const MyItems = () => {
                 <option value="dcp">DCP Package</option>
               </select>
             </div>
-            <div className="col-12 col-sm-6 col-md-3 col-lg-3 d-flex flex-column">
+            <div className="col-12 col-sm-6 col-md-3 col-lg-2 d-flex flex-column">
+              <label
+                className="form-label small fw-semibold mb-1"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Category
+              </label>
+              <select
+                className="form-select form-select-sm"
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                disabled={loading || actionLock}
+                style={{
+                  backgroundColor: "var(--input-bg)",
+                  borderColor: "var(--input-border)",
+                  color: "var(--input-text)",
+                }}
+              >
+                <option value="all">All Categories</option>
+                {categories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-12 col-sm-6 col-md-3 col-lg-2 d-flex flex-column">
               <label
                 className="form-label small fw-semibold mb-1"
                 style={{ color: "var(--text-muted)" }}
@@ -971,7 +979,7 @@ const MyItems = () => {
                 <option value="MISSING/LOST">Missing/Lost</option>
               </select>
             </div>
-            <div className="col-12 col-sm-6 col-md-3 col-lg-3 d-flex flex-column">
+            <div className="col-12 col-sm-6 col-md-3 col-lg-2 d-flex flex-column">
               <label
                 className="form-label small fw-semibold mb-1"
                 style={{ color: "var(--text-muted)" }}
@@ -1014,11 +1022,15 @@ const MyItems = () => {
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="card-title mb-0 fw-semibold text-white">
               <i className="fas fa-clipboard-list me-2"></i>
-              Assigned Items
+              Inventory Items
               {!loading && (
                 <small className="opacity-75 ms-2 text-white">
                   ({filteredItems.length} found
-                  {searchTerm || sourceFilter !== "all"
+                  {searchTerm ||
+                  schoolFilter !== "all" ||
+                  categoryFilter !== "all" ||
+                  statusFilter !== "all" ||
+                  sourceFilter !== "all"
                     ? " after filtering"
                     : ""}
                   )
@@ -1035,13 +1047,15 @@ const MyItems = () => {
                   <tr>
                     {[
                       "#",
+                      "School",
                       "Source",
                       "Item Name",
                       "Category",
                       "Serial Number",
                       "Quantity",
                       "Status",
-                      "Assigned Date",
+                      "Assigned To",
+                      "Value",
                     ].map((label) => (
                       <th
                         key={label}
@@ -1068,7 +1082,7 @@ const MyItems = () => {
                   <span className="visually-hidden">Loading...</span>
                 </div>
                 <span className="small" style={{ color: "var(--text-muted)" }}>
-                  Fetching your assigned items...
+                  Fetching inventory items...
                 </span>
               </div>
             </div>
@@ -1087,31 +1101,31 @@ const MyItems = () => {
                         #
                       </th>
                       <th
-                        className="text-center small fw-semibold"
-                        style={{ width: "10%", color: "var(--text-primary)" }}
-                      >
-                        Actions
-                      </th>
-                      <th
                         className="small fw-semibold"
                         style={{ width: "12%", color: "var(--text-primary)" }}
                       >
                         <button
                           className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start"
-                          onClick={() => handleSort("type")}
+                          onClick={() => handleSort("school_name")}
                           disabled={actionLock}
                           style={{ color: "var(--text-primary)" }}
                         >
-                          Source
+                          School
                           <i
-                            className={`ms-1 ${getSortIcon("type")}`}
+                            className={`ms-1 ${getSortIcon("school_name")}`}
                             style={{ color: "var(--text-primary)" }}
                           ></i>
                         </button>
                       </th>
                       <th
                         className="small fw-semibold"
-                        style={{ width: "25%", color: "var(--text-primary)" }}
+                        style={{ width: "10%", color: "var(--text-primary)" }}
+                      >
+                        Source
+                      </th>
+                      <th
+                        className="small fw-semibold"
+                        style={{ width: "20%", color: "var(--text-primary)" }}
                       >
                         <button
                           className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start"
@@ -1128,19 +1142,19 @@ const MyItems = () => {
                       </th>
                       <th
                         className="small fw-semibold"
-                        style={{ width: "15%", color: "var(--text-primary)" }}
+                        style={{ width: "12%", color: "var(--text-primary)" }}
                       >
                         Category
                       </th>
                       <th
                         className="small fw-semibold"
-                        style={{ width: "15%", color: "var(--text-primary)" }}
+                        style={{ width: "12%", color: "var(--text-primary)" }}
                       >
                         Serial Number
                       </th>
                       <th
                         className="text-center small fw-semibold"
-                        style={{ width: "10%", color: "var(--text-primary)" }}
+                        style={{ width: "8%", color: "var(--text-primary)" }}
                       >
                         Quantity
                       </th>
@@ -1152,20 +1166,15 @@ const MyItems = () => {
                       </th>
                       <th
                         className="small fw-semibold"
-                        style={{ width: "8%", color: "var(--text-primary)" }}
+                        style={{ width: "12%", color: "var(--text-primary)" }}
                       >
-                        <button
-                          className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start"
-                          onClick={() => handleSort("assigned_at")}
-                          disabled={actionLock}
-                          style={{ color: "var(--text-primary)" }}
-                        >
-                          Assigned
-                          <i
-                            className={`ms-1 ${getSortIcon("assigned_at")}`}
-                            style={{ color: "var(--text-primary)" }}
-                          ></i>
-                        </button>
+                        Assigned To
+                      </th>
+                      <th
+                        className="text-end small fw-semibold"
+                        style={{ width: "10%", color: "var(--text-primary)" }}
+                      >
+                        Value
                       </th>
                     </tr>
                   </thead>
@@ -1173,16 +1182,12 @@ const MyItems = () => {
                     {currentItems.map((item, index) => {
                       const itemName =
                         item.name || item.description || "Inventory Item";
-                      const itemCategory = item.category || "Uncategorized";
-                      const serialNumber = item.serial_number || "N/A";
-                      const quantity = item.quantity || 1;
                       const status =
                         item.status || item.condition_status || "N/A";
-                      const assignedDate = item.assigned_at || item.created_at;
 
                       return (
                         <tr
-                          key={`${item.type}-${item.id}`}
+                          key={item.id}
                           className="align-middle"
                           style={{ height: "70px" }}
                         >
@@ -1192,42 +1197,18 @@ const MyItems = () => {
                           >
                             {startIndex + index + 1}
                           </td>
-                          <td className="text-center" style={{ minWidth: 100 }}>
-                            <div className="d-flex justify-content-center gap-2">
-                              <button
-                                className="btn btn-info btn-sm text-white"
-                                onClick={() => {
-                                  setSelectedItem(item);
-                                  setShowDetailsModal(true);
-                                }}
-                                disabled={actionLock}
-                                title="View Details"
-                                style={{
-                                  width: 32,
-                                  height: 32,
-                                  borderRadius: 6,
-                                  padding: 0,
-                                  transition: "all 0.2s ease-in-out",
-                                }}
-                                onMouseEnter={(e) => {
-                                  if (!e.currentTarget.disabled) {
-                                    e.currentTarget.style.transform =
-                                      "translateY(-1px)";
-                                    e.currentTarget.style.boxShadow =
-                                      "0 4px 8px rgba(0,0,0,0.2)";
-                                  }
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.transform =
-                                    "translateY(0)";
-                                  e.currentTarget.style.boxShadow = "none";
-                                }}
-                              >
-                                <i
-                                  className="fas fa-eye"
-                                  style={{ fontSize: "0.875rem" }}
-                                ></i>
-                              </button>
+                          <td style={{ maxWidth: "150px", overflow: "hidden" }}>
+                            <div
+                              className="fw-semibold small"
+                              style={{
+                                color: "var(--text-primary)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={item.school_name || "Unknown School"}
+                            >
+                              {item.school_name || "Unknown School"}
                             </div>
                           </td>
                           <td>
@@ -1241,7 +1222,7 @@ const MyItems = () => {
                               {item.source}
                             </span>
                           </td>
-                          <td style={{ maxWidth: "300px", overflow: "hidden" }}>
+                          <td style={{ maxWidth: "250px", overflow: "hidden" }}>
                             <div
                               className="fw-semibold"
                               style={{
@@ -1269,7 +1250,7 @@ const MyItems = () => {
                               </div>
                             )}
                           </td>
-                          <td style={{ maxWidth: "180px", overflow: "hidden" }}>
+                          <td style={{ maxWidth: "150px", overflow: "hidden" }}>
                             <div
                               style={{
                                 color: "var(--text-primary)",
@@ -1277,12 +1258,12 @@ const MyItems = () => {
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
-                              title={itemCategory}
+                              title={item.category}
                             >
-                              {itemCategory}
+                              {item.category || "N/A"}
                             </div>
                           </td>
-                          <td style={{ maxWidth: "180px", overflow: "hidden" }}>
+                          <td style={{ maxWidth: "150px", overflow: "hidden" }}>
                             <div
                               className="text-muted small"
                               style={{
@@ -1290,14 +1271,14 @@ const MyItems = () => {
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
-                              title={serialNumber}
+                              title={item.serial_number}
                             >
-                              {serialNumber}
+                              {item.serial_number || "N/A"}
                             </div>
                           </td>
                           <td className="text-center">
                             <div style={{ color: "var(--text-primary)" }}>
-                              {quantity} {item.unit_of_measure || "pcs"}
+                              {item.quantity || 1}
                             </div>
                           </td>
                           <td className="text-center">
@@ -1312,7 +1293,8 @@ const MyItems = () => {
                                     status === "For Repair" ||
                                     status === "For Part Replacement"
                                   ? "bg-warning"
-                                  : status === "MISSING/LOST" || status === "Lost"
+                                  : status === "MISSING/LOST" ||
+                                    status === "Lost"
                                   ? "bg-secondary"
                                   : "bg-secondary"
                               }`}
@@ -1320,12 +1302,32 @@ const MyItems = () => {
                               {status}
                             </span>
                           </td>
-                          <td>
+                          <td style={{ maxWidth: "150px", overflow: "hidden" }}>
                             <div
-                              className="text-muted small"
-                              style={{ color: "var(--text-muted)" }}
+                              className="small"
+                              style={{
+                                color: item.personnel
+                                  ? "var(--text-primary)"
+                                  : "var(--text-muted)",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={item.personnel?.full_name || "Unassigned"}
                             >
-                              {formatDate(assignedDate)}
+                              {item.personnel?.full_name || (
+                                <span className="text-muted">Unassigned</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="text-end">
+                            <div
+                              className="fw-semibold"
+                              style={{ color: "var(--text-primary)" }}
+                            >
+                              {formatCurrency(
+                                item.total_value || item.unit_value || 0
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1541,19 +1543,8 @@ const MyItems = () => {
           )}
         </div>
       </div>
-
-      {/* Item Details Modal */}
-      {showDetailsModal && (
-        <ItemDetailsModal
-          item={selectedItem}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedItem(null);
-          }}
-        />
-      )}
     </div>
   );
 };
 
-export default MyItems;
+export default InventoryList;

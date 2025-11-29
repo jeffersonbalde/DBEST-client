@@ -380,12 +380,10 @@ const PersonnelDetailsModal = ({ personnel, onClose, onUpdate }) => {
                                     </td>
                                     <td>
                                       <span className={`badge ${
-                                        status === 'available' || status === 'Working' ? 'bg-success' :
-                                        status === 'assigned' ? 'bg-warning' :
-                                        status === 'For Repair' ? 'bg-warning' :
-                                        status === 'maintenance' ? 'bg-warning' :
-                                        status === 'disposed' || status === 'Unrepairable' ? 'bg-danger' :
-                                        status === 'Lost' ? 'bg-danger' :
+                                        status === 'SERVICEABLE' || status === 'Working' ? 'bg-success' :
+                                        status === 'UNSERVICEABLE' || status === 'Unrepairable' ? 'bg-danger' :
+                                        status === 'NEEDS REPAIR' || status === 'For Repair' || status === 'For Part Replacement' ? 'bg-warning' :
+                                        status === 'MISSING/LOST' || status === 'Lost' ? 'bg-secondary' :
                                         'bg-secondary'
                                       }`}>
                                         {status}

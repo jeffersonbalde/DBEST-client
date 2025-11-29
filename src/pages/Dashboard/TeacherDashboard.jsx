@@ -56,19 +56,18 @@ const getStatusColor = (status) => {
 const getStatusBadge = (status) => {
   if (!status) return "secondary";
   
-  const statusLower = String(status).toLowerCase();
+  const statusUpper = String(status).toUpperCase();
   const badges = {
-    active: "success",
-    working: "success", // DCP Package uses "Working"
-    assigned: "success",
-    returned: "secondary",
-    lost: "danger",
-    damaged: "warning",
-    "for repair": "warning",
-    "for part replacement": "warning",
-    maintenance: "warning",
+    SERVICEABLE: "success",
+    WORKING: "success", // DCP Package uses "Working"
+    UNSERVICEABLE: "danger",
+    "NEEDS REPAIR": "warning",
+    "FOR REPAIR": "warning",
+    "FOR PART REPLACEMENT": "warning",
+    "MISSING/LOST": "secondary",
+    LOST: "secondary",
   };
-  return badges[statusLower] || "secondary";
+  return badges[statusUpper] || "secondary";
 };
 
 const StatsCardSkeleton = () => (
@@ -133,7 +132,7 @@ const buildDashboardData = ({ assignedItems, personnel }) => {
   // For status, check both 'status' field and 'condition_status' (DCP uses condition_status)
   const activeItems = assignedItemsArray.filter((item) => {
     const status = item.status || item.condition_status || "";
-    return status === "active" || status === "Working" || status === "assigned";
+    return status === "SERVICEABLE" || status === "Working";
   }).length;
   
   const returnedItems = assignedItemsArray.filter((item) => {
@@ -143,12 +142,12 @@ const buildDashboardData = ({ assignedItems, personnel }) => {
   
   const lostItems = assignedItemsArray.filter((item) => {
     const status = item.status || item.condition_status || "";
-    return status === "lost" || status === "Lost";
+    return status === "MISSING/LOST" || status === "Lost";
   }).length;
   
   const damagedItems = assignedItemsArray.filter((item) => {
     const status = item.status || item.condition_status || "";
-    return status === "damaged" || status === "For Repair" || status === "For Part Replacement";
+    return status === "NEEDS REPAIR" || status === "For Repair" || status === "For Part Replacement";
   }).length;
   
   const totalQuantity = assignedItemsArray.reduce(
@@ -159,7 +158,7 @@ const buildDashboardData = ({ assignedItems, personnel }) => {
   const activeQuantity = assignedItemsArray
     .filter((item) => {
       const status = item.status || item.condition_status || "";
-      return status === "active" || status === "Working" || status === "assigned";
+      return status === "SERVICEABLE" || status === "Working";
     })
     .reduce((sum, item) => sum + (item.quantity || 1), 0);
 
@@ -175,7 +174,7 @@ const buildDashboardData = ({ assignedItems, personnel }) => {
       // Handle both School Inventory and DCP Package item structures
       const inventoryItem = item.inventory_item || item.inventoryItem || item;
       const itemName = inventoryItem?.name || item.name || item.description || "Unknown Item";
-      const status = item.status || item.condition_status || "active";
+      const status = item.status || item.condition_status || "SERVICEABLE";
       const assignedDate = item.assigned_date || item.assigned_at || item.created_at;
       
       return {
@@ -224,7 +223,7 @@ const buildDashboardData = ({ assignedItems, personnel }) => {
   // Add task for items needing attention (maintenance status)
   const maintenanceItems = assignedItemsArray.filter((item) => {
     const status = item.status || item.condition_status || "";
-    return status === "maintenance" || status === "For Repair" || status === "For Part Replacement";
+    return status === "NEEDS REPAIR" || status === "For Repair" || status === "For Part Replacement";
   }).length;
   
   if (maintenanceItems > 0) {
@@ -480,7 +479,7 @@ export default function TeacherDashboard() {
           // Map to match assigned_items structure
           inventory_item: item,
           inventoryItem: item,
-          status: item.status || "active",
+          status: item.status || "SERVICEABLE",
           quantity: item.quantity || 1,
           assigned_date: item.assigned_at || item.created_at,
         }));
@@ -534,7 +533,7 @@ export default function TeacherDashboard() {
             category: item.category,
             serial_number: item.serial_number,
           },
-          status: item.condition_status === "Working" ? "active" : (item.condition_status?.toLowerCase() || "active"),
+          status: item.condition_status === "Working" || item.condition_status === "SERVICEABLE" ? "SERVICEABLE" : (item.condition_status || "SERVICEABLE"),
           quantity: item.quantity || 1,
           assigned_date: item.assigned_at || item.created_at,
         }));

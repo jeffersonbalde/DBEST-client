@@ -41,7 +41,7 @@ const formatRelativeTime = (value) => {
 };
 
 const getActivityBadge = (type, status) => {
-  if (type === "inventory") return status === "available" ? "success" : "info";
+  if (type === "inventory") return status === "SERVICEABLE" || status === "Working" ? "success" : "info";
   if (type === "assignment")
     return status === "active" ? "primary" : "secondary";
   if (type === "personnel") return status ? "success" : "secondary";

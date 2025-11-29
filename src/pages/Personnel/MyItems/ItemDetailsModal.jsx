@@ -172,20 +172,17 @@ const ItemDetailsModal = ({ item, onClose }) => {
                     <div className="d-flex flex-wrap gap-2 justify-content-center justify-content-sm-start">
                       <span
                         className={`badge ${
-                          status === "available" || status === "Working"
+                          status === "SERVICEABLE" || status === "Working"
                             ? "bg-success"
-                            : status === "assigned"
-                            ? "bg-warning"
-                            : status === "For Repair" ||
-                              status === "For Part Replacement"
-                            ? "bg-warning"
-                            : status === "maintenance"
-                            ? "bg-warning"
-                            : status === "disposed" ||
+                            : status === "UNSERVICEABLE" ||
                               status === "Unrepairable"
                             ? "bg-danger"
-                            : status === "Lost"
-                            ? "bg-danger"
+                            : status === "NEEDS REPAIR" ||
+                              status === "For Repair" ||
+                              status === "For Part Replacement"
+                            ? "bg-warning"
+                            : status === "MISSING/LOST" || status === "Lost"
+                            ? "bg-secondary"
                             : "bg-secondary"
                         }`}
                       >
