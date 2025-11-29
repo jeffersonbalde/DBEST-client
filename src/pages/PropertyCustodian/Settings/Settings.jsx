@@ -320,7 +320,7 @@ const Settings = () => {
   };
 
   return (
-    <div className="container-fluid px-2 px-md-3 py-4 fadeIn">
+    <div className="container-fluid px-4 px-md-3 py-4 fadeIn">
       <div className="text-center mb-4">
         <div className="d-flex flex-column flex-md-row justify-content-center align-items-center mb-3">
           <div
