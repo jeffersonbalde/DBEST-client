@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ToastContainer } from "./services/notificationService";
 import "react-toastify/dist/ReactToastify.css";
 import "sweetalert2/dist/sweetalert2.min.css";
@@ -46,7 +46,27 @@ import DcpInventory from "./pages/PropertyCustodian/DcpPackages/DcpInventory";
 import SchoolProfile from "./pages/PropertyCustodian/SchoolProfile/SchoolProfile";
 import CustodianSettings from "./pages/PropertyCustodian/Settings/Settings";
 
+// Teacher/Personnel Pages
+import MyItems from "./pages/Personnel/MyItems/MyItems";
+import Profile from "./pages/Personnel/Profile/Profile";
+import AccountSettings from "./pages/Personnel/AccountSettings/AccountSettings";
+
 import "./App.css";
+
+// Settings Router Component - Shows different components based on user type
+const SettingsRouter = () => {
+  const { isIct, isAccounting, isTeacher } = useAuth();
+
+  if (isIct || isAccounting) {
+    return <IctSettings />;
+  }
+
+  if (isTeacher) {
+    return <AccountSettings />;
+  }
+
+  return <Navigate to="/unauthorized" replace />;
+};
 
 // App Routes Component
 const AppRoutes = () => {
@@ -75,11 +95,11 @@ const AppRoutes = () => {
       <Route
         path="/settings"
         element={
-          <IctAccountingRoute>
+          <ProtectedRoute>
             <Layout>
-              <IctSettings />
+              <SettingsRouter />
             </Layout>
-          </IctAccountingRoute>
+          </ProtectedRoute>
         }
       />
       <Route
@@ -204,6 +224,26 @@ const AppRoutes = () => {
           <TeacherRoute>
             <Layout>
               <TeacherDashboard />
+            </Layout>
+          </TeacherRoute>
+        }
+      />
+      <Route
+        path="/faculty/assigned-items"
+        element={
+          <TeacherRoute>
+            <Layout>
+              <MyItems />
+            </Layout>
+          </TeacherRoute>
+        }
+      />
+      <Route
+        path="/faculty/profile"
+        element={
+          <TeacherRoute>
+            <Layout>
+              <Profile />
             </Layout>
           </TeacherRoute>
         }

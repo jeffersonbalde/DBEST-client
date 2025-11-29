@@ -8,6 +8,7 @@ import React, {
 import { useAuth } from "../../../contexts/AuthContext";
 import { showAlert, showToast } from "../../../services/notificationService";
 import Portal from "../../../components/Portal/Portal";
+import ICSModal from "../../../components/ICSModal/ICSModal";
 
 const API_BASE =
   import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
@@ -63,8 +64,6 @@ const DEFAULT_FORM = {
   quantity: 1,
   property_no: "",
   personnel_id: "",
-  personnel_name: "",
-  personnel_position: "",
   condition_status: "Working",
   last_checked_at: "",
   validation_status: "Unverified",
@@ -84,6 +83,10 @@ const DcpInventory = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  const [school, setSchool] = useState(null);
+  const [showICSModal, setShowICSModal] = useState(false);
+  const [icsItem, setIcsItem] = useState(null);
+  const [icsPersonnel, setIcsPersonnel] = useState(null);
 
   const apiBaseRef = useRef(API_BASE.replace(/\/$/, ""));
 
@@ -138,6 +141,23 @@ const DcpInventory = () => {
     return data.items || data.data || [];
   }, [headers]);
 
+  const fetchSchool = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${apiBaseRef.current}/property-custodian/school-profile`,
+        {
+          headers,
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSchool(data.school || null);
+      }
+    } catch (error) {
+      console.error("Error loading school:", error);
+    }
+  }, [headers]);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -149,6 +169,7 @@ const DcpInventory = () => {
       setPackages(pkgList);
       setPersonnel(personnelList);
       setItems(invList);
+      fetchSchool();
     } catch (error) {
       console.error("DCP Inventory load error:", error);
       showAlert.error(
@@ -159,7 +180,7 @@ const DcpInventory = () => {
     } finally {
       setLoading(false);
     }
-  }, [fetchPackages, fetchPersonnel, fetchInventory]);
+  }, [fetchPackages, fetchPersonnel, fetchInventory, fetchSchool]);
 
   useEffect(() => {
     if (!token) return;
@@ -178,7 +199,8 @@ const DcpInventory = () => {
         item.model,
         item.serial_number,
         item.property_no,
-        item.personnel_name,
+        item.personnel?.first_name,
+        item.personnel?.last_name,
       ];
       return fields.some(
         (field) => field && String(field).toLowerCase().includes(term)
@@ -213,7 +235,7 @@ const DcpInventory = () => {
     setShowFormModal(true);
   };
 
-  const handleSaved = (saved) => {
+  const handleSaved = (saved, wasNewItem = false) => {
     setItems((prev) => {
       const exists = prev.some((it) => it.id === saved.id);
       if (exists) {
@@ -223,7 +245,53 @@ const DcpInventory = () => {
     });
     setShowFormModal(false);
     setEditingItem(null);
+    
+    // Show ICS modal if it's a new item and personnel was assigned
+    if (wasNewItem && saved.personnel_id) {
+      const assignedPersonnel = personnel.find(p => p.id === saved.personnel_id);
+      // Convert DCP inventory item to ICS format
+      const icsItemData = {
+        id: saved.id,
+        item_code: saved.property_no || `DCP-${saved.id}`,
+        name: saved.description || saved.category,
+        description: saved.description || `${saved.category} - ${saved.manufacturer || ''} ${saved.model || ''}`.trim(),
+        quantity: saved.quantity || 1,
+        unit_of_measure: saved.unit_of_measure || "pcs",
+        unit_price: parseFloat(saved.unit_value || 0),
+      };
+      setIcsItem(icsItemData);
+      setIcsPersonnel(assignedPersonnel || null);
+      // Small delay to allow form modal to close first
+      setTimeout(() => {
+        setShowICSModal(true);
+      }, 300);
+    }
   };
+
+  const handleGenerateICS = (item) => {
+    // Find assigned personnel if any
+    const assignedPersonnel = item.personnel_id 
+      ? personnel.find(p => p.id === item.personnel_id)
+      : null;
+    
+    // Convert DCP inventory item to ICS format
+    const icsItemData = {
+      id: item.id,
+      item_code: item.property_no || `DCP-${item.id}`,
+      name: item.description || item.category,
+      description: item.description || `${item.category} - ${item.manufacturer || ''} ${item.model || ''}`.trim(),
+      quantity: item.quantity || 1,
+      unit_of_measure: item.unit_of_measure || "pcs",
+      unit_price: parseFloat(item.unit_value || 0),
+    };
+    
+      setIcsItem(icsItemData);
+      setIcsPersonnel(assignedPersonnel || null);
+      // Small delay to allow form modal to close first
+      setTimeout(() => {
+        setShowICSModal(true);
+      }, 300);
+    };
 
   const handleDelete = async (item) => {
     if (actionLock) {
@@ -865,6 +933,47 @@ const DcpInventory = () => {
                                 ></i>
                               )}
                             </button>
+
+                            <button
+                              className="btn btn-warning btn-sm text-white"
+                              onClick={() => handleGenerateICS(item)}
+                              disabled={isActionDisabled(item.id)}
+                              title="Generate ICS"
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "6px",
+                                transition: "all 0.2s ease-in-out",
+                                padding: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!e.target.disabled) {
+                                  e.target.style.transform =
+                                    "translateY(-1px)";
+                                  e.target.style.boxShadow =
+                                    "0 4px 8px rgba(0,0,0,0.2)";
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.transform = "translateY(0)";
+                                e.target.style.boxShadow = "none";
+                              }}
+                            >
+                              {actionLoading === item.id ? (
+                                <span
+                                  className="spinner-border spinner-border-sm"
+                                  role="status"
+                                ></span>
+                              ) : (
+                                <i
+                                  className="fas fa-file-invoice"
+                                  style={{ fontSize: "0.875rem" }}
+                                ></i>
+                              )}
+                            </button>
                           </div>
                         </td>
                         <td style={{ maxWidth: "260px", overflow: "hidden" }}>
@@ -914,9 +1023,15 @@ const DcpInventory = () => {
                               textOverflow: "ellipsis",
                               whiteSpace: "nowrap",
                             }}
-                            title={item.personnel_name}
+                            title={
+                              item.personnel
+                                ? `${item.personnel.first_name || ""} ${item.personnel.last_name || ""}`.trim()
+                                : "Not assigned"
+                            }
                           >
-                            {item.personnel_name}
+                            {item.personnel
+                              ? `${item.personnel.first_name || ""} ${item.personnel.last_name || ""}`.trim()
+                              : "Not assigned"}
                           </div>
                         </td>
                         <td>{formatDate(item.last_checked_at)}</td>
@@ -1005,6 +1120,20 @@ const DcpInventory = () => {
           onSaved={handleSaved}
         />
       )}
+
+      {showICSModal && icsItem && (
+        <ICSModal
+          isOpen={showICSModal}
+          onClose={() => {
+            setShowICSModal(false);
+            setIcsItem(null);
+            setIcsPersonnel(null);
+          }}
+          item={icsItem}
+          personnel={icsPersonnel}
+          school={school}
+        />
+      )}
     </div>
   );
 };
@@ -1089,14 +1218,11 @@ const DcpInventoryFormModal = ({
     }
 
     if (name === "personnel_id") {
-      const selected = personnel.find(
-        (p) => String(p.id) === String(value)
-      );
+      // Only store personnel_id, not name or position
+      // Name and position will be retrieved from the relationship
       setFormData((prev) => ({
         ...prev,
         personnel_id: value ? Number(value) : "",
-        personnel_name: selected?.full_name || "",
-        personnel_position: selected?.position || "",
       }));
       setErrors((prev) => ({ ...prev, personnel_id: "" }));
       return;
@@ -1161,7 +1287,7 @@ const DcpInventoryFormModal = ({
           ? "DCP inventory record updated successfully!"
           : "DCP inventory record added successfully!"
       );
-      onSaved(data.item || data);
+      onSaved(data.item || data, !isEdit);
     } catch (error) {
       console.error("Save DCP inventory error:", error);
       showAlert.error(
@@ -1494,7 +1620,7 @@ const DcpInventoryFormModal = ({
                           <option value="">Select personnel</option>
                           {personnel.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.full_name}
+                              {`${p.first_name || ''} ${p.last_name || ''}`.trim()}
                             </option>
                           ))}
                         </select>
@@ -1511,9 +1637,10 @@ const DcpInventoryFormModal = ({
                         <input
                           type="text"
                           className="form-control"
-                          name="personnel_position"
-                          value={formData.personnel_position}
-                          onChange={handleChange}
+                          value={
+                            personnel.find((p) => p.id === formData.personnel_id)
+                              ?.position || "N/A"
+                          }
                           disabled
                         />
                       </div>

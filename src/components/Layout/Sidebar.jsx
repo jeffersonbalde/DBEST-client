@@ -139,11 +139,6 @@ const Sidebar = ({ onCloseSidebar }) => {
           label: "My Items",
           href: "/faculty/assigned-items",
         },
-        {
-          icon: "fas fa-user",
-          label: "My Profile",
-          href: "/faculty/profile",
-        },
       ],
     },
   ];
@@ -408,26 +403,44 @@ const Sidebar = ({ onCloseSidebar }) => {
           {/* Common Settings for All Users */}
           <div className="sb-sidenav-menu-heading">Settings</div>
 
-          {/* Profile - ICT, Accounting, Teacher use /profile. Property Custodian uses /custodian/profile */}
+          {/* Profile - ICT, Accounting use /profile. Teacher uses /faculty/profile. Property Custodian uses /custodian/profile */}
           <Link
             className={`nav-link ${
               isPropertyCustodian
                 ? isActiveLink("/custodian/profile")
                   ? "active"
                   : ""
+                : isTeacher
+                ? isActiveLink("/faculty/profile")
+                  ? "active"
+                  : ""
                 : isActiveLink("/profile")
                 ? "active"
                 : ""
             }`}
-            to={isPropertyCustodian ? "/custodian/profile" : "/profile"}
+            to={
+              isPropertyCustodian
+                ? "/custodian/profile"
+                : isTeacher
+                ? "/faculty/profile"
+                : "/profile"
+            }
             onClick={handleLinkClick}
           >
             <div className="sb-nav-link-icon">
               <i className="fas fa-user"></i>
             </div>
-            {isPropertyCustodian ? "School Profile" : "Profile"}
+            {isPropertyCustodian
+              ? "School Profile"
+              : isTeacher
+              ? "My Profile"
+              : isAccounting
+              ? "My Profile"
+              : "Profile"}
             {(isPropertyCustodian
               ? isActiveLink("/custodian/profile")
+              : isTeacher
+              ? isActiveLink("/faculty/profile")
               : isActiveLink("/profile")) && (
               <span className="position-absolute top-50 end-0 translate-middle-y me-3">
                 <i className="fas fa-chevron-right small"></i>
@@ -452,7 +465,11 @@ const Sidebar = ({ onCloseSidebar }) => {
             <div className="sb-nav-link-icon">
               <i className="fas fa-cog"></i>
             </div>
-            {isPropertyCustodian ? "Account Settings" : "Settings"}
+            {isPropertyCustodian || isTeacher
+              ? "Account Settings"
+              : isAccounting
+              ? "My Settings"
+              : "Settings"}
             {(isPropertyCustodian
               ? isActiveLink("/custodian/settings")
               : isActiveLink("/settings")) && (

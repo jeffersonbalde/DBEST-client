@@ -1552,6 +1552,10 @@ const PersonnelManagement = () => {
             setShowDetailsModal(false);
             setSelectedPersonnel(null);
           }}
+          onUpdate={() => {
+            // Refresh personnel data to get updated assignments
+            fetchPersonnel();
+          }}
         />
       )}
       {showDeactivateModal && targetPersonnel && (

@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import Portal from "../../../components/Portal/Portal";
+import { useAuth } from "../../../contexts/AuthContext";
+import { showAlert, showToast } from "../../../services/notificationService";
 
 const formatDateTime = (value) => {
   if (!value) return "N/A";
@@ -80,14 +82,112 @@ const infoRow = (label, value) => (
   </div>
 );
 
-const PersonnelDetailsModal = ({ personnel, onClose }) => {
+const PersonnelDetailsModal = ({ personnel, onClose, onUpdate }) => {
+  const { token } = useAuth();
   const [isClosing, setIsClosing] = useState(false);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [schoolInventoryItems, setSchoolInventoryItems] = useState([]);
+  const [dcpInventoryItems, setDcpInventoryItems] = useState([]);
 
   const assignedItems = useMemo(() => {
-    if (!personnel) return [];
-    const list = personnel.assigned_items || personnel.assignedItems || [];
-    return Array.isArray(list) ? list : [];
-  }, [personnel]);
+    // Combine both school inventory and DCP inventory items
+    const allItems = [
+      ...schoolInventoryItems.map(item => ({
+        ...item,
+        type: 'school',
+        source: 'School Inventory'
+      })),
+      ...dcpInventoryItems.map(item => ({
+        ...item,
+        type: 'dcp',
+        source: 'DCP Package Inventory'
+      }))
+    ];
+    return allItems;
+  }, [schoolInventoryItems, dcpInventoryItems]);
+
+  const fetchAssignedItems = useCallback(async () => {
+    if (!personnel?.id || !token) {
+      setSchoolInventoryItems([]);
+      setDcpInventoryItems([]);
+      return;
+    }
+    try {
+      setLoadingAssignments(true);
+      const apiBase = import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api";
+      const baseUrl = apiBase.replace(/\/$/, "");
+
+      // Fetch all School Inventory items and filter by personnel_id
+      const schoolResponse = await fetch(
+        `${baseUrl}/property-custodian/inventory?per_page=1000`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      // Fetch all DCP Inventory items and filter by personnel_id
+      const dcpResponse = await fetch(
+        `${baseUrl}/property-custodian/dcp-inventory?per_page=1000`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      // Process School Inventory - filter items assigned to this personnel
+      if (schoolResponse.ok) {
+        const schoolData = await schoolResponse.json();
+        let allSchoolItems = [];
+        if (schoolData.data && Array.isArray(schoolData.data)) {
+          allSchoolItems = schoolData.data;
+        } else if (Array.isArray(schoolData)) {
+          allSchoolItems = schoolData;
+        } else if (schoolData.items && Array.isArray(schoolData.items)) {
+          allSchoolItems = schoolData.items;
+        }
+        // Filter by personnel_id
+        const assignedSchoolItems = allSchoolItems.filter(item => item.personnel_id === personnel.id);
+        setSchoolInventoryItems(assignedSchoolItems);
+      } else {
+        setSchoolInventoryItems([]);
+      }
+
+      // Process DCP Inventory - filter items assigned to this personnel
+      if (dcpResponse.ok) {
+        const dcpData = await dcpResponse.json();
+        let allDcpItems = [];
+        if (dcpData.data && Array.isArray(dcpData.data)) {
+          allDcpItems = dcpData.data;
+        } else if (Array.isArray(dcpData)) {
+          allDcpItems = dcpData;
+        } else if (dcpData.items && Array.isArray(dcpData.items)) {
+          allDcpItems = dcpData.items;
+        }
+        // Filter by personnel_id
+        const assignedDcpItems = allDcpItems.filter(item => item.personnel_id === personnel.id);
+        setDcpInventoryItems(assignedDcpItems);
+      } else {
+        setDcpInventoryItems([]);
+      }
+    } catch (error) {
+      console.error("Error fetching assigned items:", error);
+      setSchoolInventoryItems([]);
+      setDcpInventoryItems([]);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  }, [personnel?.id, token]);
+
+  useEffect(() => {
+    if (personnel?.id) {
+      fetchAssignedItems();
+    }
+  }, [personnel?.id, fetchAssignedItems]);
 
   const closeModal = useCallback(async () => {
     setIsClosing(true);
@@ -215,11 +315,18 @@ const PersonnelDetailsModal = ({ personnel, onClose }) => {
                     <div className="card-header bg-transparent border-bottom-0">
                       <h6 className="mb-0 fw-semibold" style={{ color: "#0E254B" }}>
                         <i className="fas fa-laptop-house me-2 text-info" />
-                        Assigned DCP / ICT Packages
+                        Assigned Items
                       </h6>
                     </div>
                     <div className="card-body">
-                      {assignedItems.length === 0 ? (
+                      {loadingAssignments ? (
+                        <div className="text-center py-4">
+                          <div className="spinner-border spinner-border-sm text-primary me-2" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
+                          <span className="text-muted small">Loading assignments...</span>
+                        </div>
+                      ) : assignedItems.length === 0 ? (
                         <div className="text-center py-4">
                           <div className="text-muted small">
                             <i className="fas fa-box-open me-2"></i>
@@ -231,37 +338,62 @@ const PersonnelDetailsModal = ({ personnel, onClose }) => {
                           <table className="table table-sm align-middle">
                             <thead>
                               <tr className="text-muted small text-uppercase">
-                                <th>Item</th>
+                                <th>Source</th>
+                                <th>Item Name</th>
                                 <th>Category</th>
-                                <th>Item Code</th>
-                                <th>Issued</th>
+                                <th>Serial Number</th>
+                                <th>Quantity</th>
+                                <th>Status</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {assignedItems.map((assignment) => (
-                                <tr key={assignment.id || assignment.inventory_item_id}>
-                                  <td>
-                                    <div className="fw-semibold">
-                                      {assignment.inventory_item?.name ||
-                                        assignment.inventoryItem?.name ||
-                                        "Inventory Item"}
-                                    </div>
-                                  </td>
-                                  <td className="text-muted small">
-                                    {assignment.inventory_item?.category ||
-                                      assignment.inventoryItem?.category ||
-                                      "Uncategorized"}
-                                  </td>
-                                  <td className="text-muted small">
-                                    {assignment.inventory_item?.item_code ||
-                                      assignment.inventoryItem?.item_code ||
-                                      "N/A"}
-                                  </td>
-                                  <td className="text-muted small">
-                                    {formatDateTime(assignment.assigned_at)}
-                                  </td>
-                                </tr>
-                              ))}
+                              {assignedItems.map((item) => {
+                                // Handle both School Inventory and DCP Inventory structures
+                                const itemName = item.name || item.description || "Inventory Item";
+                                const itemCategory = item.category || "Uncategorized";
+                                const serialNumber = item.serial_number || "N/A";
+                                const quantity = item.quantity || 1;
+                                const status = item.status || item.condition_status || "N/A";
+                                
+                                return (
+                                  <tr key={`${item.type}-${item.id}`}>
+                                    <td>
+                                      <span className={`badge ${
+                                        item.type === 'school' ? 'bg-primary' : 'bg-info'
+                                      }`}>
+                                        {item.source}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <div className="fw-semibold">
+                                        {itemName}
+                                      </div>
+                                    </td>
+                                    <td className="text-muted small">
+                                      {itemCategory}
+                                    </td>
+                                    <td className="text-muted small">
+                                      {serialNumber}
+                                    </td>
+                                    <td className="text-muted small">
+                                      {quantity} {item.unit_of_measure || 'pcs'}
+                                    </td>
+                                    <td>
+                                      <span className={`badge ${
+                                        status === 'available' || status === 'Working' ? 'bg-success' :
+                                        status === 'assigned' ? 'bg-warning' :
+                                        status === 'For Repair' ? 'bg-warning' :
+                                        status === 'maintenance' ? 'bg-warning' :
+                                        status === 'disposed' || status === 'Unrepairable' ? 'bg-danger' :
+                                        status === 'Lost' ? 'bg-danger' :
+                                        'bg-secondary'
+                                      }`}>
+                                        {status}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -313,6 +445,7 @@ const PersonnelDetailsModal = ({ personnel, onClose }) => {
           </div>
         </div>
       </div>
+
     </Portal>
   );
 };

@@ -10,6 +10,7 @@ import { useAuth } from "../../../contexts/AuthContext";
 import { showAlert, showToast } from "../../../services/notificationService";
 import Portal from "../../../components/Portal/Portal";
 import InventoryCategories from "./InventoryCategories";
+import ICSModal from "../../../components/ICSModal/ICSModal";
 
 const STATUS_OPTIONS = [
   { value: "available", label: "Available", color: "#22c55e" },
@@ -19,7 +20,6 @@ const STATUS_OPTIONS = [
 ];
 
 const DEFAULT_FORM = {
-  item_code: "",
   name: "",
   description: "",
   category_id: "",
@@ -37,6 +37,7 @@ const DEFAULT_FORM = {
   warranty_expiry: "",
   supplier: "",
   notes: "",
+  personnel_id: "",
 };
 
 const statusMeta = {
@@ -177,6 +178,11 @@ const Inventory = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
   const [activeTab, setActiveTab] = useState("inventory");
+  const [personnel, setPersonnel] = useState([]);
+  const [school, setSchool] = useState(null);
+  const [showICSModal, setShowICSModal] = useState(false);
+  const [icsItem, setIcsItem] = useState(null);
+  const [icsPersonnel, setIcsPersonnel] = useState(null);
 
   const apiBaseRef = useRef(
     (import.meta.env.VITE_LARAVEL_API || "http://localhost:8000/api").replace(
@@ -266,10 +272,62 @@ const Inventory = () => {
     }
   }, [token]);
 
+  const fetchPersonnel = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${apiBaseRef.current}/property-custodian/personnel?per_page=200`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load personnel");
+      }
+
+      const data = await response.json();
+      const list = Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data)
+        ? data
+        : [];
+      setPersonnel(list);
+    } catch (error) {
+      console.error("Error loading personnel:", error);
+      setPersonnel([]);
+    }
+  }, [token]);
+
+  const fetchSchool = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `${apiBaseRef.current}/property-custodian/school-profile`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setSchool(data.school || data);
+      }
+    } catch (error) {
+      console.error("Error loading school:", error);
+    }
+  }, [token]);
+
   useEffect(() => {
     fetchInventory();
     fetchCategories();
-  }, [fetchInventory, fetchCategories]);
+    fetchPersonnel();
+    fetchSchool();
+  }, [fetchInventory, fetchCategories, fetchPersonnel, fetchSchool]);
 
   const filterAndSortItems = useCallback(() => {
     let filtered = [...items];
@@ -279,7 +337,6 @@ const Inventory = () => {
       filtered = filtered.filter((item) => {
         const fields = [
           item.name,
-          item.item_code,
           item.category,
           item.brand,
           item.model,
@@ -434,7 +491,7 @@ const Inventory = () => {
     setShowFormModal(true);
   };
 
-  const handleSaveItem = (savedItem) => {
+  const handleSaveItem = (savedItem, assignedPersonnelId = null) => {
     setItems((prev) => {
       const exists = prev.some((item) => item.id === savedItem.id);
       if (exists) {
@@ -451,6 +508,22 @@ const Inventory = () => {
     showToast.success(
       editingItem ? "Inventory item updated!" : "Inventory item added!"
     );
+    
+    // Show ICS modal if personnel was assigned (for both new and edited items)
+    if (assignedPersonnelId) {
+      const assignedPersonnel = personnel.find(p => p.id === assignedPersonnelId);
+      setIcsItem(savedItem);
+      setIcsPersonnel(assignedPersonnel || null);
+      setShowICSModal(true);
+    }
+  };
+
+  const handleGenerateICS = (item) => {
+    // Find assigned personnel if any
+    const assignedPersonnel = personnel.find(p => p.id === item.personnel_id);
+    setIcsItem(item);
+    setIcsPersonnel(assignedPersonnel || null);
+    setShowICSModal(true);
   };
 
   const handleDeleteItem = async (item) => {
@@ -1417,6 +1490,48 @@ const Inventory = () => {
                                       ></i>
                                     )}
                                   </button>
+
+                                  <button
+                                    className="btn btn-warning btn-sm text-white"
+                                    onClick={() => handleGenerateICS(item)}
+                                    disabled={isActionDisabled(item.id)}
+                                    title="Generate ICS"
+                                    style={{
+                                      width: "32px",
+                                      height: "32px",
+                                      borderRadius: "6px",
+                                      transition: "all 0.2s ease-in-out",
+                                      padding: 0,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!e.target.disabled) {
+                                        e.target.style.transform =
+                                          "translateY(-1px)";
+                                        e.target.style.boxShadow =
+                                          "0 4px 8px rgba(0,0,0,0.2)";
+                                      }
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      e.target.style.transform =
+                                        "translateY(0)";
+                                      e.target.style.boxShadow = "none";
+                                    }}
+                                  >
+                                    {actionLoading === item.id ? (
+                                      <span
+                                        className="spinner-border spinner-border-sm"
+                                        role="status"
+                                      ></span>
+                                    ) : (
+                                      <i
+                                        className="fas fa-file-invoice"
+                                        style={{ fontSize: "0.875rem" }}
+                                      ></i>
+                                    )}
+                                  </button>
                                 </div>
                               </td>
                               <td>
@@ -1432,9 +1547,6 @@ const Inventory = () => {
                                       title={item.name}
                                     >
                                       {item.name || "Unnamed Item"}
-                                    </div>
-                                    <div className="text-muted small text-truncate">
-                                      Code: {item.item_code || "N/A"}
                                     </div>
                                     <div className="text-muted small text-truncate">
                                       Serial: {item.serial_number || "N/A"}
@@ -1568,6 +1680,7 @@ const Inventory = () => {
               token={token}
               item={editingItem}
               categoryOptions={categoryOptions}
+              personnel={personnel}
               onClose={() => {
                 setShowFormModal(false);
                 setEditingItem(null);
@@ -1576,9 +1689,24 @@ const Inventory = () => {
             />
           )}
 
+          {showICSModal && icsItem && (
+            <ICSModal
+              isOpen={showICSModal}
+              onClose={() => {
+                setShowICSModal(false);
+                setIcsItem(null);
+                setIcsPersonnel(null);
+              }}
+              item={icsItem}
+              personnel={icsPersonnel}
+              school={school}
+            />
+          )}
+
           {showDetailsModal && selectedItem && (
             <ItemDetailsModal
               item={selectedItem}
+              personnel={personnel}
               onClose={() => {
                 setShowDetailsModal(false);
                 setSelectedItem(null);
@@ -1595,7 +1723,7 @@ const Inventory = () => {
   );
 };
 
-const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
+const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions, personnel = [] }) => {
   const [formData, setFormData] = useState(DEFAULT_FORM);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -1690,9 +1818,9 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
   };
 
   const validators = {
-    item_code: (value) => (!value ? "Item code is required" : ""),
     name: (value) => (!value ? "Item name is required" : ""),
     category_id: (value) => (!value ? "Category is required" : ""),
+    personnel_id: (value) => (!value ? "Personnel assignment is required" : ""),
     quantity: (value) =>
       value === "" || value === null || Number(value) < 0
         ? "Quantity must be 0 or greater"
@@ -1901,7 +2029,6 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
         // Handle Laravel validation errors or friendly messages
         if (data && data.errors) {
           const fieldLabels = {
-            item_code: "Item Code",
             name: "Item Name",
             description: "Description",
             category_id: "Category",
@@ -1965,7 +2092,7 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
           showAlert.error("Error", message);
         }
       } else {
-        onSave(data);
+        onSave(data, formData.personnel_id || null);
         showAlert.close();
       }
     } catch (error) {
@@ -1986,28 +2113,21 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
         onClick={handleBackdropClick}
         tabIndex="-1"
       >
-        <div className="modal-dialog modal-dialog-centered modal-xl mx-3 mx-sm-auto">
+        <div className="modal-dialog modal-dialog-centered modal-lg mx-3 mx-sm-auto">
           <div
             className={`modal-content border-0 modal-content-animation ${
               isClosing ? "exit" : ""
             }`}
-            style={{ boxShadow: "0 25px 80px rgba(0,0,0,0.35)" }}
+            style={{ boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}
           >
             <div
               className="modal-header border-0 text-white"
               style={{ backgroundColor: "#0E254B" }}
             >
               <div>
-                <p className="text-uppercase small mb-1 fw-semibold text-white-50">
-                  {isEdit ? "Update Inventory Item" : "Register Inventory Item"}
-                </p>
                 <h4 className="modal-title fw-bold">
                   {isEdit ? "Edit Asset" : "Add New Asset"}
                 </h4>
-                <p className="mb-0 text-white-75">
-                  Provide complete equipment details for proper tagging &
-                  tracking.
-                </p>
               </div>
               <button
                 type="button"
@@ -2022,122 +2142,9 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
                 style={{ maxHeight: "75vh", overflowY: "auto" }}
               >
                 <div className="container-fluid px-1">
-                  <div className="row g-4">
-                    <div className="col-lg-6">
-                      <div className="card border-0 shadow-sm rounded-4 h-100">
-                        <div className="card-body">
-                          <h6 className="text-uppercase text-muted fw-semibold mb-3">
-                            Identification
-                          </h6>
-                          <div className="mb-3">
-                            <label className="form-label fw-semibold">
-                              Item Name <span className="text-danger">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              className={`form-control ${
-                                errors.name ? "is-invalid" : ""
-                              }`}
-                              name="name"
-                              value={formData.name}
-                              onChange={handleChange}
-                              placeholder="e.g., 55'' Smart TV"
-                            />
-                            {errors.name && (
-                              <div className="invalid-feedback">
-                                {errors.name}
-                              </div>
-                            )}
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label fw-semibold">
-                              Item Code <span className="text-danger">*</span>
-                            </label>
-                            <input
-                              type="text"
-                              className={`form-control ${
-                                errors.item_code ? "is-invalid" : ""
-                              }`}
-                              name="item_code"
-                              value={formData.item_code}
-                              onChange={handleChange}
-                              placeholder="e.g., TV-ICT-2024-001"
-                            />
-                            {errors.item_code && (
-                              <div className="invalid-feedback">
-                                {errors.item_code}
-                              </div>
-                            )}
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label fw-semibold">
-                              Category <span className="text-danger">*</span>
-                            </label>
-                            <select
-                              className={`form-select ${
-                                errors.category_id ? "is-invalid" : ""
-                              }`}
-                              name="category_id"
-                              value={formData.category_id || ""}
-                              onChange={handleChange}
-                            >
-                              <option value="">Select category</option>
-                              {Array.isArray(categoryOptions) &&
-                                categoryOptions.map((category, index) => {
-                                  if (typeof category === "string") {
-                                    return (
-                                      <option
-                                        key={`category-${index}`}
-                                        value=""
-                                      >
-                                        {category}
-                                      </option>
-                                    );
-                                  }
-                                  return (
-                                    <option key={category.id} value={category.id}>
-                                      {category.name}
-                                    </option>
-                                  );
-                                })}
-                            </select>
-                            {errors.category_id && (
-                              <div className="invalid-feedback">
-                                {errors.category_id}
-                              </div>
-                            )}
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label fw-semibold">
-                              Location
-                            </label>
-                            <input
-                              type="text"
-                              className="form-control"
-                              name="location"
-                              value={formData.location}
-                              onChange={handleChange}
-                              placeholder="e.g., Grade 10 ICT Lab"
-                            />
-                          </div>
-                          <div className="mb-3">
-                            <label className="form-label fw-semibold">
-                              Description
-                            </label>
-                            <textarea
-                              className="form-control"
-                              rows="3"
-                              name="description"
-                              value={formData.description || ""}
-                              onChange={handleChange}
-                              placeholder="Key notes or custom configuration"
-                            ></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-lg-6">
-                      <div className="card border-0 shadow-sm rounded-4 mb-4">
+                  <div className="row g-3">
+                    <div className="col-12">
+                      <div className="card border-0 shadow-sm">
                         <div className="card-body text-center p-4">
                           <div className="d-flex flex-column align-items-center">
                             <div
@@ -2208,7 +2215,125 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
                           </div>
                         </div>
                       </div>
-                      <div className="card border-0 shadow-sm rounded-4 mb-4">
+                    </div>
+                    <div className="col-12">
+                      <div className="card border-0 shadow-sm">
+                        <div className="card-body">
+                          <h6 className="text-uppercase text-muted fw-semibold mb-3">
+                            Identification
+                          </h6>
+                          <div className="row g-3">
+                            <div className="col-md-6">
+                              <label className="form-label fw-semibold">
+                                Item Name <span className="text-danger">*</span>
+                              </label>
+                              <input
+                                type="text"
+                                className={`form-control ${
+                                  errors.name ? "is-invalid" : ""
+                                }`}
+                                name="name"
+                                value={formData.name}
+                                onChange={handleChange}
+                                placeholder="e.g., 55'' Smart TV"
+                              />
+                              {errors.name && (
+                                <div className="invalid-feedback">
+                                  {errors.name}
+                                </div>
+                              )}
+                            </div>
+                            <div className="col-md-6">
+                              <label className="form-label fw-semibold">
+                                Category <span className="text-danger">*</span>
+                              </label>
+                              <select
+                                className={`form-select ${
+                                  errors.category_id ? "is-invalid" : ""
+                                }`}
+                                name="category_id"
+                                value={formData.category_id || ""}
+                                onChange={handleChange}
+                              >
+                                <option value="">Select category</option>
+                                {Array.isArray(categoryOptions) &&
+                                  categoryOptions.map((category, index) => {
+                                    if (typeof category === "string") {
+                                      return (
+                                        <option
+                                          key={`category-${index}`}
+                                          value=""
+                                        >
+                                          {category}
+                                        </option>
+                                      );
+                                    }
+                                    return (
+                                      <option key={category.id} value={category.id}>
+                                        {category.name}
+                                      </option>
+                                    );
+                                  })}
+                              </select>
+                              {errors.category_id && (
+                                <div className="invalid-feedback">
+                                  {errors.category_id}
+                                </div>
+                              )}
+                            </div>
+                            <div className="col-md-6">
+                              <label className="form-label fw-semibold">
+                                Location
+                              </label>
+                              <input
+                                type="text"
+                                className="form-control"
+                                name="location"
+                                value={formData.location}
+                                onChange={handleChange}
+                                placeholder="e.g., Grade 10 ICT Lab"
+                              />
+                            </div>
+                            <div className="col-md-6">
+                              <label className="form-label fw-semibold">
+                                Status <span className="text-danger">*</span>
+                              </label>
+                              <select
+                                className="form-select"
+                                name="status"
+                                value={formData.status}
+                                onChange={handleChange}
+                              >
+                                {STATUS_OPTIONS.map((option) => (
+                                  <option
+                                    key={option.value}
+                                    value={option.value}
+                                  >
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="col-12">
+                              <label className="form-label fw-semibold">
+                                Description
+                              </label>
+                              <textarea
+                                className="form-control"
+                                rows="2"
+                                name="description"
+                                value={formData.description || ""}
+                                onChange={handleChange}
+                                placeholder="Key notes or custom configuration"
+                              ></textarea>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="col-12">
+                      <div className="card border-0 shadow-sm">
                         <div className="card-body">
                           <h6 className="text-uppercase text-muted fw-semibold mb-3">
                             Specifications
@@ -2266,15 +2391,6 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
                                 placeholder="e.g., units, sets"
                               />
                             </div>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="card border-0 shadow-sm rounded-4">
-                        <div className="card-body">
-                          <h6 className="text-uppercase text-muted fw-semibold mb-3">
-                            Inventory & Procurement
-                          </h6>
-                          <div className="row g-3">
                             <div className="col-md-6">
                               <label className="form-label fw-semibold">
                                 Quantity <span className="text-danger">*</span>
@@ -2315,26 +2431,6 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
                                   {errors.available_quantity}
                                 </div>
                               )}
-                            </div>
-                            <div className="col-md-6">
-                              <label className="form-label fw-semibold">
-                                Status <span className="text-danger">*</span>
-                              </label>
-                              <select
-                                className="form-select"
-                                name="status"
-                                value={formData.status}
-                                onChange={handleChange}
-                              >
-                                {STATUS_OPTIONS.map((option) => (
-                                  <option
-                                    key={option.value}
-                                    value={option.value}
-                                  >
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
                             </div>
                             <div className="col-md-6">
                               <label className="form-label fw-semibold">
@@ -2409,13 +2505,52 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
                         </div>
                       </div>
                     </div>
+
+                    <div className="col-12">
+                      <div className="card border-0 shadow-sm">
+                        <div className="card-body">
+                          <h6 className="text-uppercase text-muted fw-semibold mb-3">
+                            Assignment
+                          </h6>
+                          <div className="mb-3">
+                            <label className="form-label fw-semibold">
+                              Assign to Personnel <span className="text-danger">*</span>
+                            </label>
+                            <select
+                              className={`form-select ${
+                                errors.personnel_id ? "is-invalid" : ""
+                              }`}
+                              name="personnel_id"
+                              value={formData.personnel_id || ""}
+                              onChange={handleChange}
+                            >
+                              <option value="">Select personnel</option>
+                              {Array.isArray(personnel) &&
+                                personnel
+                                  .filter((p) => p.is_active)
+                                  .map((p) => (
+                                    <option key={p.id} value={p.id}>
+                                      {p.first_name} {p.last_name}
+                                      {p.position ? ` - ${p.position}` : ""}
+                                    </option>
+                                  ))}
+                            </select>
+                            {errors.personnel_id && (
+                              <div className="invalid-feedback">
+                                {errors.personnel_id}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="modal-footer border-0 bg-white d-flex justify-content-between">
+              <div className="modal-footer border-top bg-white modal-smooth">
                 <button
                   type="button"
-                  className="btn btn-outline-secondary"
+                  className="btn btn-outline-secondary btn-smooth"
                   onClick={handleClose}
                   disabled={loading}
                 >
@@ -2423,15 +2558,19 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary px-4"
+                  className="btn btn-primary btn-smooth"
+                  style={{ backgroundColor: "#0E254B", borderColor: "#0E254B" }}
                   disabled={loading}
                 >
                   {loading ? (
-                    <span className="spinner-border spinner-border-sm"></span>
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2"></span>
+                      Saving...
+                    </>
                   ) : (
                     <>
-                      <i className="fas fa-save me-2"></i>
-                      {isEdit ? "Save Changes" : "Save Item"}
+                      <i className="fas fa-save me-1"></i>
+                      {isEdit ? "Update Item" : "Save Item"}
                     </>
                   )}
                 </button>
@@ -2444,8 +2583,35 @@ const ItemFormModal = ({ token, item, onClose, onSave, categoryOptions }) => {
   );
 };
 
-const ItemDetailsModal = ({ item, onClose }) => {
+const infoRow = (label, value) => (
+  <div className="mb-3">
+    <label className="form-label small fw-semibold text-muted mb-1">
+      {label}
+    </label>
+    <p className="mb-0 fw-semibold text-dark">{value || "N/A"}</p>
+  </div>
+);
+
+const formatDateTime = (value) => {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Invalid date";
+  return date.toLocaleString("en-PH", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+const ItemDetailsModal = ({ item, personnel = [], onClose }) => {
   const [isClosing, setIsClosing] = useState(false);
+
+  const assignedPersonnel = useMemo(() => {
+    if (!item?.personnel_id || !Array.isArray(personnel)) return null;
+    return personnel.find((p) => p.id === item.personnel_id) || null;
+  }, [item, personnel]);
 
   const closeModal = useCallback(async () => {
     setIsClosing(true);
@@ -2499,134 +2665,188 @@ const ItemDetailsModal = ({ item, onClose }) => {
               className="modal-header border-0 text-white"
               style={{ backgroundColor: "#0E254B" }}
             >
-              <div>
-                <p className="text-uppercase small mb-1 fw-semibold text-white-50">
-                  Inventory Details
-                </p>
-                <h4 className="modal-title fw-bold d-flex align-items-center gap-3">
-                  <AssetThumbnail item={item} size={44} />
-                  <span>{item.name}</span>
-                </h4>
-                <p className="mb-0 text-white-75">
-                  {item.item_code || "No item code"}
-                </p>
-              </div>
+              <h5 className="modal-title fw-bold">
+                <i className="fas fa-box me-2" />
+                Inventory Details
+              </h5>
               <button
                 type="button"
                 className="btn-close btn-close-white"
-                onClick={closeModal}
                 aria-label="Close"
+                onClick={closeModal}
               ></button>
             </div>
+
             <div
               className="modal-body bg-light"
               style={{ maxHeight: "75vh", overflowY: "auto" }}
             >
-              <div className="row g-3">
-                <div className="col-lg-8">
-                  <div className="card border-0 shadow-sm rounded-4 h-100">
-                    <div className="card-body">
-                      <h6 className="text-uppercase text-muted fw-semibold mb-3">
-                        Specifications & Notes
-                      </h6>
-                      <div className="row g-3">
-                        {[
-                          { label: "Category", value: item.category || "N/A" },
-                          { label: "Location", value: item.location || "N/A" },
-                          { label: "Manufacturer", value: item.brand || "N/A" },
-                          { label: "Model", value: item.model || "N/A" },
-                          {
-                            label: "Serial Number",
-                            value: item.serial_number || "N/A",
-                          },
-                          {
-                            label: "Unit of Measure",
-                            value: item.unit_of_measure || "N/A",
-                          },
-                        ].map((detail) => (
-                          <div className="col-md-6" key={detail.label}>
-                            <p className="text-muted small mb-1">
-                              {detail.label}
-                            </p>
-                            <p className="fw-semibold mb-0">{detail.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="mt-4">
-                        <p className="text-muted small mb-1">Description</p>
-                        <p className="mb-0">
-                          {item.description || "No description provided."}
-                        </p>
-                      </div>
-                      {item.notes && (
-                        <div className="mt-3">
-                          <p className="text-muted small mb-1">Notes</p>
-                          <p className="mb-0">{item.notes}</p>
-                        </div>
+              <div className="card border-0 shadow-sm mb-4">
+                <div className="card-body d-flex flex-column flex-sm-row align-items-center gap-3">
+                  <AssetThumbnail item={item} size={110} />
+                  <div className="text-center text-sm-start">
+                    <h4 className="fw-bold mb-1" style={{ color: "#0E254B" }}>
+                      {item.name || "Unnamed Item"}
+                    </h4>
+                    <p className="text-muted mb-2">
+                      Category: {item.category || "Uncategorized"} · Serial:{" "}
+                      {item.serial_number || "N/A"}
+                    </p>
+                    {assignedPersonnel && (
+                      <p className="text-muted mb-2">
+                        <i className="fas fa-user me-1" />
+                        Assigned to: {assignedPersonnel.first_name || ""} {assignedPersonnel.last_name || ""}
+                        {assignedPersonnel.position ? ` (${assignedPersonnel.position})` : ""}
+                      </p>
+                    )}
+                    <div className="d-flex flex-wrap gap-2 justify-content-center justify-content-sm-start">
+                      {statusMeta[item.status] ? (
+                        <span className={statusMeta[item.status].className}>
+                          <i className="fas fa-circle me-1" />
+                          {statusMeta[item.status].label}
+                        </span>
+                      ) : (
+                        <span className="badge bg-secondary">
+                          <i className="fas fa-circle me-1" />
+                          Unknown Status
+                        </span>
                       )}
                     </div>
                   </div>
                 </div>
-                <div className="col-lg-4">
-                  <div className="card border-0 shadow-sm rounded-4">
-                    <div className="card-body">
-                      <h6 className="text-uppercase text-muted fw-semibold mb-3">
-                        Inventory Snapshot
+              </div>
+
+              <div className="row g-3">
+                <div className="col-12 col-md-6">
+                  <div className="card border-0 shadow-sm h-100">
+                    <div className="card-header bg-transparent border-bottom-0">
+                      <h6 className="mb-0 fw-semibold" style={{ color: "#0E254B" }}>
+                        <i className="fas fa-info-circle me-2 text-primary" />
+                        Item Information
                       </h6>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <span className="text-muted">Total Quantity</span>
-                        <span className="fw-bold">
-                          {item.quantity || 0} {item.unit_of_measure || "units"}
-                        </span>
-                      </div>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <span className="text-muted">Available</span>
-                        <span className="fw-bold text-success">
-                          {item.available_quantity || 0}
-                        </span>
-                      </div>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <span className="text-muted">Status</span>
-                        {statusMeta[item.status] ? (
-                          <span className={statusMeta[item.status].className}>
-                            {statusMeta[item.status].label}
-                          </span>
-                        ) : (
-                          "N/A"
-                        )}
-                      </div>
-                      <div className="d-flex align-items-center justify-content-between mb-3">
-                        <span className="text-muted">Unit Price</span>
-                        <span className="fw-bold">
-                          {item.unit_price
-                            ? `₱${Number(item.unit_price).toLocaleString()}`
-                            : "N/A"}
-                        </span>
-                      </div>
-                      <hr />
-                      <div className="mb-2">
-                        <p className="text-muted small mb-1">Purchase Date</p>
-                        <p className="fw-semibold mb-0">
-                          {formatDate(item.purchase_date)}
-                        </p>
-                      </div>
-                      <div className="mb-2">
-                        <p className="text-muted small mb-1">Warranty Expiry</p>
-                        <p className="fw-semibold mb-0">
-                          {formatDate(item.warranty_expiry)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted small mb-1">Supplier</p>
-                        <p className="fw-semibold mb-0">
-                          {item.supplier || "N/A"}
-                        </p>
-                      </div>
+                    </div>
+                    <div className="card-body">
+                      {infoRow("Category", item.category || "Not set")}
+                      {infoRow("Location", item.location || "Not set")}
+                      {infoRow("Manufacturer", item.brand || "Not set")}
+                      {infoRow("Model", item.model || "Not set")}
+                      {infoRow("Serial Number", item.serial_number || "Not set")}
+                      {infoRow("Unit of Measure", item.unit_of_measure || "Not set")}
+                      {assignedPersonnel && (
+                        infoRow(
+                          "Assigned to Personnel",
+                          `${assignedPersonnel.first_name || ""} ${assignedPersonnel.last_name || ""}`.trim() || "N/A"
+                        )
+                      )}
                     </div>
                   </div>
                 </div>
+
+                <div className="col-12 col-md-6">
+                  <div className="card border-0 shadow-sm h-100">
+                    <div className="card-header bg-transparent border-bottom-0">
+                      <h6 className="mb-0 fw-semibold" style={{ color: "#0E254B" }}>
+                        <i className="fas fa-chart-bar me-2 text-success" />
+                        Inventory & Financials
+                      </h6>
+                    </div>
+                    <div className="card-body">
+                      {infoRow(
+                        "Total Quantity",
+                        `${item.quantity || 0} ${item.unit_of_measure || "units"}`
+                      )}
+                      {infoRow("Available Quantity", item.available_quantity || 0)}
+                      {infoRow(
+                        "Unit Price",
+                        item.unit_price
+                          ? `₱${Number(item.unit_price).toLocaleString()}`
+                          : "Not set"
+                      )}
+                      {infoRow(
+                        "Estimated Value",
+                        item.quantity && item.unit_price
+                          ? `₱${Number(
+                              Number(item.quantity) * Number(item.unit_price)
+                            ).toLocaleString()}`
+                          : "Not set"
+                      )}
+                      {infoRow("Supplier", item.supplier || "Not set")}
+                      {infoRow("Status", statusMeta[item.status]?.label || "Not set")}
+                    </div>
+                  </div>
+                </div>
+
+                {(item.description || item.notes) && (
+                  <div className="col-12">
+                    <div className="card border-0 shadow-sm">
+                      <div className="card-header bg-transparent border-bottom-0">
+                        <h6 className="mb-0 fw-semibold" style={{ color: "#0E254B" }}>
+                          <i className="fas fa-file-alt me-2 text-info" />
+                          Description & Notes
+                        </h6>
+                      </div>
+                      <div className="card-body">
+                        {item.description && (
+                          <div className="mb-3">
+                            <label className="form-label small fw-semibold text-muted mb-1">
+                              Description
+                            </label>
+                            <p className="mb-0 text-dark">{item.description}</p>
+                          </div>
+                        )}
+                        {item.notes && (
+                          <div>
+                            <label className="form-label small fw-semibold text-muted mb-1">
+                              Notes / Remarks
+                            </label>
+                            <p className="mb-0 text-muted">{item.notes}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(item.purchase_date || item.warranty_expiry || item.created_at || item.updated_at) && (
+                  <div className="col-12">
+                    <div className="card border-0 shadow-sm">
+                      <div className="card-header bg-transparent border-bottom-0">
+                        <h6 className="mb-0 fw-semibold" style={{ color: "#0E254B" }}>
+                          <i className="fas fa-history me-2 text-warning" />
+                          Timeline & Procurement
+                        </h6>
+                      </div>
+                      <div className="card-body row">
+                        {item.purchase_date && (
+                          <div className="col-12 col-md-6">
+                            {infoRow("Purchase Date", formatDate(item.purchase_date))}
+                          </div>
+                        )}
+                        {item.warranty_expiry && (
+                          <div className="col-12 col-md-6">
+                            {infoRow("Warranty Expiry", formatDate(item.warranty_expiry))}
+                          </div>
+                        )}
+                        {item.created_at && (
+                          <div className="col-12 col-md-6">
+                            {infoRow(
+                              "Registered On",
+                              formatDateTime(item.created_at)
+                            )}
+                          </div>
+                        )}
+                        {item.updated_at && (
+                          <div className="col-12 col-md-6">
+                            {infoRow("Last Updated", formatDateTime(item.updated_at))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
+
             <div className="modal-footer border-top bg-white">
               <button
                 type="button"
