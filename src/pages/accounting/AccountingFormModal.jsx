@@ -534,7 +534,7 @@ const AccountingFormModal = ({ accounting, onClose, onSave, token }) => {
         };
         initialStateRef.current = normalizedAccounting;
         setFormData(normalizedAccounting);
-        setHasUnsavedChanges(false);
+      setHasUnsavedChanges(false);
         setAvatarFile(null);
         setAvatarRemoved(false);
         updateAvatarPreview(refreshedAvatar || "");
@@ -695,25 +695,25 @@ const AccountingFormModal = ({ accounting, onClose, onSave, token }) => {
                                   ? "Change Photo"
                                   : "Upload Photo"}
                               </label>
-                              <input
+                  <input
                                 id="accounting-avatar-input"
                                 ref={fileInputRef}
-                                type="file"
-                                accept="image/*"
+                    type="file"
+                    accept="image/*"
                                 className="d-none"
-                                onChange={handleAvatarChange}
+                    onChange={handleAvatarChange}
                                 disabled={loading}
                               />
                               {avatarPreview && (
-                                <button
-                                  type="button"
+                        <button
+                          type="button"
                                   className="btn btn-outline-danger btn-sm"
                                   onClick={handleAvatarClear}
-                                  disabled={loading}
-                                >
+                          disabled={loading}
+                        >
                                   <i className="fas fa-trash me-2" />
                                   Remove Photo
-                                </button>
+                        </button>
                               )}
                             </div>
                             <small className="text-muted mt-2">
@@ -723,29 +723,29 @@ const AccountingFormModal = ({ accounting, onClose, onSave, token }) => {
                             {errors.avatar && (
                               <div className="text-danger small mt-2">
                                 {errors.avatar}
-                              </div>
-                            )}
-                          </div>
-                        </div>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                        </div>
+                  </div>
+                </div>
 
                     <div className="col-12">
-                      <div className="row g-3">
+                <div className="row g-3">
                         <div className="col-12 col-md-6">
-                          <label className="form-label small fw-semibold text-dark mb-1">
-                            Username <span className="text-danger">*</span>
-                          </label>
-                          <input
-                            type="text"
+                    <label className="form-label small fw-semibold text-dark mb-1">
+                      Username <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
                             className={`form-control ${
                               errors.username ? "is-invalid" : ""
                             }`}
-                            name="username"
-                            value={formData.username}
-                            onChange={handleChange}
+                      name="username"
+                      value={formData.username}
+                      onChange={handleChange}
                             disabled={loading || accountingsLoading}
-                            placeholder="Unique login username"
+                      placeholder="Unique login username"
                           />
                           {errors.username && (
                             <div className="invalid-feedback">
@@ -758,90 +758,90 @@ const AccountingFormModal = ({ accounting, onClose, onSave, token }) => {
                               Checking username availability...
                             </small>
                           )}
-                        </div>
+                  </div>
 
                         <div className="col-12 col-md-6">
-                          <label className="form-label small fw-semibold text-dark mb-1">
-                            First Name <span className="text-danger">*</span>
-                          </label>
-                          <input
-                            type="text"
+                    <label className="form-label small fw-semibold text-dark mb-1">
+                      First Name <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
                             className={`form-control ${
                               errors.first_name ? "is-invalid" : ""
                             }`}
-                            name="first_name"
-                            value={formData.first_name}
-                            onChange={handleChange}
-                            disabled={loading}
-                            placeholder="Enter first name"
-                          />
-                          {errors.first_name && (
+                      name="first_name"
+                      value={formData.first_name}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="Enter first name"
+                    />
+                    {errors.first_name && (
                             <div className="invalid-feedback">
                               {errors.first_name}
                             </div>
-                          )}
-                        </div>
+                    )}
+                  </div>
 
                         <div className="col-12 col-md-6">
-                          <label className="form-label small fw-semibold text-dark mb-1">
-                            Last Name <span className="text-danger">*</span>
-                          </label>
-                          <input
-                            type="text"
+                    <label className="form-label small fw-semibold text-dark mb-1">
+                      Last Name <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
                             className={`form-control ${
                               errors.last_name ? "is-invalid" : ""
                             }`}
-                            name="last_name"
-                            value={formData.last_name}
-                            onChange={handleChange}
-                            disabled={loading}
-                            placeholder="Enter last name"
-                          />
-                          {errors.last_name && (
+                      name="last_name"
+                      value={formData.last_name}
+                      onChange={handleChange}
+                      disabled={loading}
+                      placeholder="Enter last name"
+                    />
+                    {errors.last_name && (
                             <div className="invalid-feedback">
                               {errors.last_name}
                             </div>
-                          )}
-                        </div>
+                    )}
+                  </div>
 
                         <div className="col-12 col-md-6">
-                          <label className="form-label small fw-semibold text-dark mb-1">
-                            Contact Number
-                          </label>
-                          <input
-                            type="text"
+                    <label className="form-label small fw-semibold text-dark mb-1">
+                      Contact Number
+                    </label>
+                      <input
+                        type="text"
                             className={`form-control ${
-                              errors.phone ? "is-invalid" : ""
-                            }`}
-                            name="phone"
+                          errors.phone ? "is-invalid" : ""
+                        }`}
+                        name="phone"
                             value={formData.phone}
-                            onChange={handleChange}
-                            disabled={loading}
+                        onChange={handleChange}
+                        disabled={loading}
                             placeholder="e.g., 0951-341-9336"
-                            maxLength={13}
-                          />
+                        maxLength={13}
+                      />
                           {errors.phone && (
                             <div className="invalid-feedback">
                               {errors.phone}
-                            </div>
+                    </div>
                           )}
                           <small className="text-muted">
                             Enter 11 digits (e.g., 0951-341-9336)
                           </small>
-                        </div>
+                </div>
 
                         <div className="col-12">
                           <div className="card border-warning bg-white">
-                            <div className="card-header bg-warning bg-opacity-10">
-                              <h6 className="mb-0 text-warning">
-                                <i className="fas fa-key me-2"></i>
+                  <div className="card-header bg-warning bg-opacity-10">
+                    <h6 className="mb-0 text-warning">
+                      <i className="fas fa-key me-2"></i>
                                 {isEdit
                                   ? "Update Password (Optional)"
                                   : "Password Information"}
-                              </h6>
-                            </div>
-                            <div className="card-body">
-                              <div className="row">
+                    </h6>
+                  </div>
+                  <div className="card-body">
+                    <div className="row">
                                 <div className="col-md-6">
                                   <div className="mb-3 position-relative">
                                     <label className="form-label small fw-semibold text-dark mb-1">
@@ -868,7 +868,7 @@ const AccountingFormModal = ({ accounting, onClose, onSave, token }) => {
                                         disabled={loading}
                                         placeholder={
                                           isEdit
-                                            ? "Leave blank to keep current password"
+                          ? "Leave blank to keep current password"
                                             : "Enter password"
                                         }
                                       />

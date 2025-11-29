@@ -65,6 +65,32 @@ export default function Login() {
         setTimeout(() => {
           navigate(getRoleHomeRoute(result.user_type));
         }, 1500);
+      } else if (result.deactivation) {
+        const { reason, deactivated_at, deactivated_by } = result.deactivation;
+        const formattedDate = deactivated_at
+          ? new Date(deactivated_at).toLocaleString("en-PH", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "N/A";
+
+        showAlert.info(
+          "Account Deactivated",
+          `
+            <div style="text-align:left;color:#0E254B;">
+              <p class="mb-2">Your access is currently disabled, so you won't be able to continue.</p>
+              <div style="background:#f8fafc;border-radius:8px;padding:12px;">
+                <p class="mb-1"><strong>Reason:</strong> ${reason || "No reason provided."}</p>
+                <p class="mb-1"><strong>Deactivated By:</strong> ${deactivated_by || "Not recorded"}</p>
+                <p class="mb-0"><strong>Date & Time:</strong> ${formattedDate}</p>
+              </div>
+              <p class="mt-3 mb-0">Please reach out to your ICT administrator if this needs to be reviewed.</p>
+            </div>
+          `
+        );
       } else {
         showAlert.error(
           "Login Failed",

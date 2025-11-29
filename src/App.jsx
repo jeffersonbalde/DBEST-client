@@ -33,6 +33,18 @@ import AccountingManagement from "./pages/accounting/AccountingManagement";
 import Backups from "./pages/ict/Backups/Backups";
 import IctProfile from "./pages/ict/IctProfile/IctProfile";
 import IctSettings from "./pages/ict/IctSettings/IctSettings";
+import DcpPackages from "./pages/ict/DcpPackages/DcpPackages";
+
+// Property Custodian Pages
+import Inventory from "./pages/PropertyCustodian/Inventory/Inventory";
+import InventoryCategories from "./pages/PropertyCustodian/Inventory/InventoryCategories";
+import AssignedItems from "./pages/PropertyCustodian/AssignedItems/AssignedItems";
+import PersonnelManagement from "./pages/PropertyCustodian/PersonnelManagement/PersonnelManagement";
+import InventoryReports from "./pages/PropertyCustodian/InventoryReports/InventoryReports";
+import CustodianDcpPackages from "./pages/PropertyCustodian/DcpPackages/DcpPackages";
+import DcpInventory from "./pages/PropertyCustodian/DcpPackages/DcpInventory";
+import SchoolProfile from "./pages/PropertyCustodian/SchoolProfile/SchoolProfile";
+import CustodianSettings from "./pages/PropertyCustodian/Settings/Settings";
 
 import "./App.css";
 
@@ -80,6 +92,16 @@ const AppRoutes = () => {
           </IctRoute>
         }
       />
+      <Route
+        path="/dashboard/ict/dcp-packages"
+        element={
+          <IctRoute>
+            <Layout>
+              <DcpPackages />
+            </Layout>
+          </IctRoute>
+        }
+      />
 
       <Route path="/unauthorized" element={<Unauthorized />} />
 
@@ -90,6 +112,86 @@ const AppRoutes = () => {
           <PropertyCustodianRoute>
             <Layout>
               <PropertyCustodianDashboard />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/profile"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <SchoolProfile />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/inventory"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <Inventory />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/inventory/categories"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <InventoryCategories />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/assigned-items"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <AssignedItems />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/personnel"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <PersonnelManagement />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/reports"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <InventoryReports />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/dcp-packages"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <CustodianDcpPackages />
+            </Layout>
+          </PropertyCustodianRoute>
+        }
+      />
+      <Route
+        path="/custodian/dcp-inventory"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <DcpInventory />
             </Layout>
           </PropertyCustodianRoute>
         }
@@ -158,6 +260,18 @@ const AppRoutes = () => {
               <AccountingDashboard />
             </Layout>
           </AccountingRoute>
+        }
+      />
+
+      {/* Property Custodian Settings */}
+      <Route
+        path="/custodian/settings"
+        element={
+          <PropertyCustodianRoute>
+            <Layout>
+              <CustodianSettings />
+            </Layout>
+          </PropertyCustodianRoute>
         }
       />
 

@@ -115,7 +115,18 @@ export const AuthProvider = ({ children }) => {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || "Login failed");
+        if (res.status === 423 && data.deactivation) {
+          return {
+            success: false,
+            error: data.message || "Your account is deactivated.",
+            deactivation: data.deactivation,
+          };
+        }
+
+        return {
+          success: false,
+          error: data.message || "Login failed",
+        };
       }
 
       // Store token with timestamp for expiration check
@@ -135,7 +146,12 @@ export const AuthProvider = ({ children }) => {
       };
     } catch (error) {
       console.error("Login error:", error);
-      return { success: false, error: error.message };
+      return {
+        success: false,
+        error:
+          error.message ||
+          "Unable to connect to the server. Please try again later.",
+      };
     }
   };
 

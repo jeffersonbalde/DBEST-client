@@ -237,73 +237,73 @@ const SchoolsManagement = () => {
 
   const getSchoolAvatarUrl = useCallback((school) => {
     if (!school) return null;
-    if (school.avatar_path) {
-      const baseUrl = import.meta.env.VITE_LARAVEL_API;
-      let cleanFilename = school.avatar_path;
+      if (school.avatar_path) {
+        const baseUrl = import.meta.env.VITE_LARAVEL_API;
+        let cleanFilename = school.avatar_path;
       if (school.avatar_path.includes("school-avatars/")) {
         cleanFilename = school.avatar_path.replace("school-avatars/", "");
       }
       cleanFilename = cleanFilename.split("/").pop();
       return `${baseUrl}/school-avatar/${cleanFilename}`;
     }
-    return null;
+      return null;
   }, []);
 
-  const AvatarBadge = ({ school, size = 44 }) => {
-    const getInitials = (name) => {
-      if (!name) return "S";
-      return name
-        .split(" ")
-        .map((part) => part.charAt(0))
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-    };
+const AvatarBadge = ({ school, size = 44 }) => {
+  const getInitials = (name) => {
+    if (!name) return "S";
+    return name
+      .split(" ")
+      .map((part) => part.charAt(0))
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
-    if (school.avatar_path) {
-      const avatarUrl = getSchoolAvatarUrl(school);
-      return (
-        <div
-          className="rounded-circle overflow-hidden border"
-          style={{
-            width: size,
-            height: size,
-            borderColor: "#e1e6ef",
-            flexShrink: 0,
-            backgroundColor: "#f4f6fb",
-          }}
-        >
-          <img
-            src={avatarUrl}
-            alt={`${school.name}'s avatar`}
-            className="rounded-circle border"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
-            onError={(e) => {
-              e.target.style.display = "none";
-            }}
-          />
-        </div>
-      );
-    }
-
+  if (school.avatar_path) {
+    const avatarUrl = getSchoolAvatarUrl(school);
     return (
       <div
-        className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+        className="rounded-circle overflow-hidden border"
         style={{
           width: size,
           height: size,
-          backgroundColor: "#0E254B",
+          borderColor: "#e1e6ef",
           flexShrink: 0,
+          backgroundColor: "#f4f6fb",
         }}
       >
-        {getInitials(school.name)}
+        <img
+          src={avatarUrl}
+          alt={`${school.name}'s avatar`}
+          className="rounded-circle border"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+          }}
+          onError={(e) => {
+            e.target.style.display = "none";
+          }}
+        />
       </div>
     );
-  };
+  }
+
+  return (
+    <div
+      className="rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: "#0E254B",
+        flexShrink: 0,
+      }}
+    >
+      {getInitials(school.name)}
+    </div>
+  );
+};
 
   const handleViewDetails = (school) => {
     setSelectedSchool(school);
@@ -319,7 +319,7 @@ const SchoolsManagement = () => {
           day: "numeric",
           hour: "2-digit",
           minute: "2-digit",
-        }
+    }
       : { year: "numeric", month: "short", day: "numeric" };
     return new Date(value).toLocaleString("en-US", options);
   };
@@ -327,94 +327,94 @@ const SchoolsManagement = () => {
   // Skeleton loader for table rows with action button skeletons
   const TableRowSkeleton = () => {
     return (
-      <tr className="align-middle" style={{ height: "70px" }}>
-        <td className="text-center">
-          <div className="placeholder-wave">
+    <tr className="align-middle" style={{ height: "70px" }}>
+      <td className="text-center">
+        <div className="placeholder-wave">
             <span
               className="placeholder col-4"
               style={{ height: "20px" }}
             ></span>
-          </div>
-        </td>
-        <td className="text-center">
-          <div className="d-flex justify-content-center gap-1">
+        </div>
+      </td>
+      <td className="text-center">
+        <div className="d-flex justify-content-center gap-1">
             {[1, 2, 3].map((item) => (
-              <div
-                key={item}
-                className="placeholder action-placeholder"
+            <div
+              key={item}
+              className="placeholder action-placeholder"
                 style={{
                   width: "32px",
                   height: "32px",
                   borderRadius: "6px",
                 }}
-              ></div>
-            ))}
-          </div>
-        </td>
-        <td>
+            ></div>
+          ))}
+        </div>
+      </td>
+      <td>
           <div className="d-flex align-items-center">
             <div className="flex-grow-1">
-              <div className="placeholder-wave mb-1">
+        <div className="placeholder-wave mb-1">
                 <span
                   className="placeholder col-8"
                   style={{ height: "16px" }}
                 ></span>
-              </div>
-              <div className="placeholder-wave">
+        </div>
+        <div className="placeholder-wave">
                 <span
                   className="placeholder col-6"
                   style={{ height: "14px" }}
                 ></span>
               </div>
             </div>
-          </div>
-        </td>
-        <td>
-          <div className="placeholder-wave mb-1">
+        </div>
+      </td>
+      <td>
+        <div className="placeholder-wave mb-1">
             <span
               className="placeholder col-10"
               style={{ height: "16px" }}
             ></span>
-          </div>
-          <div className="placeholder-wave">
+        </div>
+        <div className="placeholder-wave">
             <span
               className="placeholder col-8"
               style={{ height: "14px" }}
             ></span>
-          </div>
-        </td>
-        <td>
-          <div className="placeholder-wave mb-1">
+        </div>
+      </td>
+      <td>
+        <div className="placeholder-wave mb-1">
             <span
               className="placeholder col-8"
               style={{ height: "16px" }}
             ></span>
-          </div>
-          <div className="placeholder-wave">
+        </div>
+        <div className="placeholder-wave">
             <span
               className="placeholder col-6"
               style={{ height: "14px" }}
             ></span>
-          </div>
-        </td>
+        </div>
+      </td>
         <td>
           <div className="placeholder-wave">
-            <span
-              className="placeholder col-6"
+          <span
+            className="placeholder col-6"
               style={{ height: "16px" }}
-            ></span>
-          </div>
-        </td>
-        <td>
-          <div className="placeholder-wave">
+          ></span>
+        </div>
+      </td>
+      <td>
+        <div className="placeholder-wave">
             <span
               className="placeholder col-8"
               style={{ height: "16px" }}
             ></span>
-          </div>
-        </td>
-      </tr>
-    );
+        </div>
+      </td>
+    </tr>
+  );
   };
 
   // Skeleton loader for stats cards
@@ -423,18 +423,18 @@ const SchoolsManagement = () => {
       <div className="card stats-card h-100">
         <div className="card-body p-3">
           <div className="d-flex align-items-center">
-            <div className="flex-grow-1">
+        <div className="flex-grow-1">
               <div className="text-xs fw-semibold text-uppercase mb-1 placeholder-wave">
-                <span
+            <span
                   className="placeholder col-7"
-                  style={{ height: "14px" }}
-                ></span>
-              </div>
+              style={{ height: "14px" }}
+            ></span>
+          </div>
               <div className="h4 mb-0 fw-bold placeholder-wave">
-                <span
+            <span
                   className="placeholder col-4"
-                  style={{ height: "28px" }}
-                ></span>
+              style={{ height: "28px" }}
+            ></span>
               </div>
             </div>
             <div className="col-auto">
@@ -448,11 +448,11 @@ const SchoolsManagement = () => {
                   }}
                 ></span>
               </div>
-            </div>
           </div>
         </div>
       </div>
-    );
+    </div>
+  );
   };
 
   const totalActive = schools.filter((s) => s.is_active).length;
@@ -531,9 +531,9 @@ const SchoolsManagement = () => {
       {/* Stats Cards at the Top */}
       <div className="row g-3 mb-4">
         <div className="col-6 col-md-3">
-          {loading ? (
-            <StatsCardSkeleton />
-          ) : (
+            {loading ? (
+              <StatsCardSkeleton />
+            ) : (
             <div className="card stats-card h-100">
               <div className="card-body p-3">
                 <div className="d-flex align-items-center">
@@ -543,7 +543,7 @@ const SchoolsManagement = () => {
                       style={{ color: "var(--primary-color)" }}
                     >
                       Total Schools
-                    </div>
+                  </div>
                     <div
                       className="h4 mb-0 fw-bold"
                       style={{ color: "var(--primary-color)" }}
@@ -588,12 +588,12 @@ const SchoolsManagement = () => {
                       className="fas fa-check-circle fa-2x"
                       style={{ color: "var(--accent-light)", opacity: 0.7 }}
                     ></i>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         <div className="col-6 col-md-3">
           {loading ? (
             <StatsCardSkeleton />
@@ -607,7 +607,7 @@ const SchoolsManagement = () => {
                       style={{ color: "var(--primary-dark)" }}
                     >
                       Filtered Results
-                    </div>
+      </div>
                     <div
                       className="h4 mb-0 fw-bold"
                       style={{ color: "var(--primary-dark)" }}
@@ -657,8 +657,8 @@ const SchoolsManagement = () => {
               </div>
             </div>
           )}
+          </div>
         </div>
-      </div>
 
       {/* Search and Filter Controls */}
       <div
@@ -685,19 +685,19 @@ const SchoolsManagement = () => {
                 >
                   <i className="fas fa-search"></i>
                 </span>
-                <input
-                  type="text"
-                  className="form-control"
+              <input
+                type="text"
+                className="form-control"
                   placeholder="Search by name, DepEd ID, region, division, or contact..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                   disabled={loading || isActionDisabled()}
-                  style={{
-                    backgroundColor: "var(--input-bg)",
-                    borderColor: "var(--input-border)",
-                    color: "var(--input-text)",
-                  }}
-                />
+                style={{
+                  backgroundColor: "var(--input-bg)",
+                  borderColor: "var(--input-border)",
+                  color: "var(--input-text)",
+                }}
+              />
                 {searchTerm && (
                   <button
                     className="btn btn-sm clear-search-btn"
@@ -733,7 +733,7 @@ const SchoolsManagement = () => {
                     ></i>
                   </button>
                 )}
-              </div>
+            </div>
             </div>
             <div className="col-md-3">
               <label
@@ -783,8 +783,8 @@ const SchoolsManagement = () => {
               </select>
             </div>
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
 
       {/* Main Content Card */}
       <div
@@ -818,7 +818,7 @@ const SchoolsManagement = () => {
         <div className="card-body p-0">
           {loading ? (
             // Loading state with action button skeletons
-            <div className="table-responsive">
+          <div className="table-responsive">
               <table className="table table-striped table-hover mb-0">
                 <thead style={{ backgroundColor: "var(--background-light)" }}>
                   <tr>
@@ -958,28 +958,28 @@ const SchoolsManagement = () => {
             <>
               <div className="table-responsive">
                 <table className="table table-striped table-hover mb-0">
-                  <thead style={{ backgroundColor: "var(--background-light)" }}>
-                    <tr>
-                      <th
-                        style={{ width: "5%" }}
-                        className="text-center small fw-semibold"
-                      >
-                        #
-                      </th>
-                      <th
-                        style={{ width: "15%" }}
-                        className="text-center small fw-semibold"
-                      >
-                        Actions
-                      </th>
+              <thead style={{ backgroundColor: "var(--background-light)" }}>
+                <tr>
+                  <th
+                    style={{ width: "5%" }}
+                    className="text-center small fw-semibold"
+                  >
+                    #
+                  </th>
+                  <th
+                    style={{ width: "15%" }}
+                    className="text-center small fw-semibold"
+                  >
+                    Actions
+                  </th>
                       <th
                         style={{ width: "30%" }}
                         className="small fw-semibold text-white"
                       >
-                        <button
+                    <button
                           className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start text-white"
-                          onClick={() => handleSort("name")}
-                          disabled={isActionDisabled()}
+                      onClick={() => handleSort("name")}
+                      disabled={isActionDisabled()}
                           style={{ color: "white" }}
                         >
                           School Information
@@ -987,63 +987,63 @@ const SchoolsManagement = () => {
                             className={`ms-1 ${getSortIcon("name")}`}
                             style={{ color: "white" }}
                           ></i>
-                        </button>
-                      </th>
+                    </button>
+                  </th>
                       <th
                         style={{ width: "20%" }}
                         className="small fw-semibold text-white"
                       >
-                        Region & Division
-                      </th>
+                    Region & Division
+                  </th>
                       <th
                         style={{ width: "15%" }}
                         className="small fw-semibold text-white"
                       >
-                        Contact Person
-                      </th>
-                      <th
-                        style={{ width: "10%" }}
+                    Contact Person
+                  </th>
+                  <th
+                    style={{ width: "10%" }}
                         className="text-center small fw-semibold text-white"
-                      >
-                        Status
-                      </th>
+                  >
+                    Status
+                  </th>
                       <th
                         style={{ width: "5%" }}
                         className="small fw-semibold text-white"
                       >
-                        <button
+                    <button
                           className="btn btn-link p-0 border-0 text-decoration-none fw-semibold text-start text-white"
-                          onClick={() => handleSort("created_at")}
-                          disabled={isActionDisabled()}
+                      onClick={() => handleSort("created_at")}
+                      disabled={isActionDisabled()}
                           style={{ color: "white" }}
-                        >
-                          Registered
+                    >
+                      Registered
                           <i
                             className={`ms-1 ${getSortIcon("created_at")}`}
                             style={{ color: "white" }}
                           ></i>
-                        </button>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
                     {currentSchools.map((school, index) => {
                       const createdInfo = formatDateTime(school.created_at);
-                      return (
-                        <tr key={school.id} className="align-middle">
-                          <td
-                            className="text-center fw-bold"
-                            style={{ color: "var(--text-primary)" }}
-                          >
-                            {startIndex + index + 1}
-                          </td>
-                          <td className="text-center">
+                    return (
+                      <tr key={school.id} className="align-middle">
+                        <td
+                          className="text-center fw-bold"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {startIndex + index + 1}
+                        </td>
+                        <td className="text-center">
                             <div className="d-flex justify-content-center gap-1">
-                              <button
+                            <button
                                 className="btn btn-info btn-sm text-white"
-                                onClick={() => handleViewDetails(school)}
-                                disabled={isActionDisabled(school.id)}
-                                title="View Details"
+                              onClick={() => handleViewDetails(school)}
+                              disabled={isActionDisabled(school.id)}
+                              title="View Details"
                                 style={{
                                   width: "32px",
                                   height: "32px",
@@ -1078,13 +1078,13 @@ const SchoolsManagement = () => {
                                     style={{ fontSize: "0.875rem" }}
                                   ></i>
                                 )}
-                              </button>
+                            </button>
 
-                              <button
+                            <button
                                 className="btn btn-success btn-sm text-white"
-                                onClick={() => handleEditSchool(school)}
-                                disabled={isActionDisabled(school.id)}
-                                title="Edit School"
+                              onClick={() => handleEditSchool(school)}
+                              disabled={isActionDisabled(school.id)}
+                              title="Edit School"
                                 style={{
                                   width: "32px",
                                   height: "32px",
@@ -1119,13 +1119,13 @@ const SchoolsManagement = () => {
                                     style={{ fontSize: "0.875rem" }}
                                   ></i>
                                 )}
-                              </button>
+                            </button>
 
-                              <button
+                            <button
                                 className="btn btn-danger btn-sm text-white"
-                                onClick={() => handleDeleteSchool(school)}
-                                disabled={isActionDisabled(school.id)}
-                                title="Delete School"
+                              onClick={() => handleDeleteSchool(school)}
+                              disabled={isActionDisabled(school.id)}
+                              title="Delete School"
                                 style={{
                                   width: "32px",
                                   height: "32px",
@@ -1148,29 +1148,29 @@ const SchoolsManagement = () => {
                                   e.target.style.transform = "translateY(0)";
                                   e.target.style.boxShadow = "none";
                                 }}
-                              >
-                                {actionLoading === school.id ? (
-                                  <span
-                                    className="spinner-border spinner-border-sm"
-                                    role="status"
-                                  ></span>
-                                ) : (
+                            >
+                              {actionLoading === school.id ? (
+                                <span
+                                  className="spinner-border spinner-border-sm"
+                                  role="status"
+                                ></span>
+                              ) : (
                                   <i
                                     className="fas fa-trash"
                                     style={{ fontSize: "0.875rem" }}
                                   ></i>
-                                )}
-                              </button>
-                            </div>
-                          </td>
+                              )}
+                            </button>
+                          </div>
+                        </td>
                           <td style={{ maxWidth: "300px", overflow: "hidden" }}>
-                            <div className="d-flex align-items-center gap-3">
-                              <AvatarBadge school={school} />
-                              <div
+                          <div className="d-flex align-items-center gap-3">
+                            <AvatarBadge school={school} />
+                            <div
                                 className="flex-grow-1"
                                 style={{ minWidth: 0, overflow: "hidden" }}
-                              >
-                                <div
+                            >
+                              <div
                                   className="fw-medium mb-1"
                                   style={{
                                     color: "var(--text-primary)",
@@ -1178,11 +1178,11 @@ const SchoolsManagement = () => {
                                     textOverflow: "ellipsis",
                                     whiteSpace: "nowrap",
                                   }}
-                                  title={school.name}
-                                >
-                                  {school.name}
-                                </div>
-                                <div
+                                title={school.name}
+                              >
+                                {school.name}
+                              </div>
+                              <div
                                   className="small"
                                   style={{
                                     color: "var(--text-muted)",
@@ -1193,25 +1193,25 @@ const SchoolsManagement = () => {
                                   title={`DepEd ID: ${
                                     school.deped_code || "N/A"
                                   }`}
-                                >
-                                  DepEd ID: {school.deped_code || "N/A"}
-                                </div>
+                              >
+                                DepEd ID: {school.deped_code || "N/A"}
                               </div>
                             </div>
-                          </td>
+                          </div>
+                        </td>
                           <td style={{ maxWidth: "200px", overflow: "hidden" }}>
-                            <div
-                              style={{
-                                color: "var(--text-primary)",
+                          <div
+                            style={{
+                              color: "var(--text-primary)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
-                              }}
-                              title={school.region || "Region not set"}
-                            >
-                              {school.region || "Region not set"}
-                            </div>
-                            <div
+                            }}
+                            title={school.region || "Region not set"}
+                          >
+                            {school.region || "Region not set"}
+                          </div>
+                          <div
                               className="small"
                               style={{
                                 color: "var(--text-muted)",
@@ -1219,26 +1219,26 @@ const SchoolsManagement = () => {
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
-                              title={school.division || "Division not set"}
-                            >
-                              {school.division || "Division not set"}
-                            </div>
-                          </td>
+                            title={school.division || "Division not set"}
+                          >
+                            {school.division || "Division not set"}
+                          </div>
+                        </td>
                           <td style={{ maxWidth: "150px", overflow: "hidden" }}>
-                            <div
-                              style={{
-                                color: "var(--text-primary)",
+                          <div
+                            style={{
+                              color: "var(--text-primary)",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
-                              }}
+                            }}
                               title={
                                 school.contact_person || "No contact person"
                               }
-                            >
-                              {school.contact_person || "No contact person"}
-                            </div>
-                            <div
+                          >
+                            {school.contact_person || "No contact person"}
+                          </div>
+                          <div
                               className="small"
                               style={{
                                 color: "var(--text-muted)",
@@ -1246,76 +1246,76 @@ const SchoolsManagement = () => {
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
                               }}
-                              title={
-                                school.contact_phone ||
-                                school.contact_email ||
-                                "No contact details"
-                              }
-                            >
-                              {school.contact_phone ||
-                                school.contact_email ||
-                                "No contact details"}
-                            </div>
-                          </td>
-                          <td className="text-center">
-                            <span
-                              className={`badge ${
-                                school.is_active ? "bg-success" : "bg-secondary"
-                              }`}
-                            >
-                              {school.is_active ? "Active" : "Inactive"}
-                            </span>
-                          </td>
-                          <td>
+                            title={
+                              school.contact_phone ||
+                              school.contact_email ||
+                              "No contact details"
+                            }
+                          >
+                            {school.contact_phone ||
+                              school.contact_email ||
+                              "No contact details"}
+                          </div>
+                        </td>
+                        <td className="text-center">
+                          <span
+                            className={`badge ${
+                              school.is_active ? "bg-success" : "bg-secondary"
+                            }`}
+                          >
+                            {school.is_active ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td>
                             <small style={{ color: "var(--text-muted)" }}>
                               {createdInfo}
                             </small>
-                          </td>
-                        </tr>
-                      );
+                        </td>
+                      </tr>
+                    );
                     })}
-                  </tbody>
-                </table>
-              </div>
+              </tbody>
+            </table>
+          </div>
 
               {/* Pagination */}
               {totalPages > 1 && (
-                <div className="card-footer bg-white border-top px-3 py-2">
-                  <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                    <div className="text-center text-md-start">
-                      <small style={{ color: "var(--text-muted)" }}>
+            <div className="card-footer bg-white border-top px-3 py-2">
+              <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                <div className="text-center text-md-start">
+                  <small style={{ color: "var(--text-muted)" }}>
                         Showing{" "}
-                        <span
-                          className="fw-semibold"
+                    <span
+                      className="fw-semibold"
                           style={{ color: "var(--text-primary)" }}
-                        >
-                          {startIndex + 1}-
-                          {Math.min(endIndex, filteredSchools.length)}
+                    >
+                      {startIndex + 1}-
+                      {Math.min(endIndex, filteredSchools.length)}
                         </span>{" "}
                         of{" "}
-                        <span
-                          className="fw-semibold"
+                    <span
+                      className="fw-semibold"
                           style={{ color: "var(--text-primary)" }}
-                        >
-                          {filteredSchools.length}
+                    >
+                      {filteredSchools.length}
                         </span>{" "}
-                        schools
-                      </small>
-                    </div>
+                    schools
+                  </small>
+                </div>
 
-                    <div className="d-flex align-items-center gap-2">
-                      <button
-                        className="btn btn-sm"
-                        onClick={() =>
-                          setCurrentPage((prev) => Math.max(prev - 1, 1))
-                        }
-                        disabled={currentPage === 1 || isActionDisabled()}
-                        style={{
+                <div className="d-flex align-items-center gap-2">
+                  <button
+                    className="btn btn-sm"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1 || isActionDisabled()}
+                    style={{
                           transition: "all 0.2s ease-in-out",
-                          border: "2px solid var(--primary-color)",
+                      border: "2px solid var(--primary-color)",
                           color: "var(--primary-color)",
-                          backgroundColor: "transparent",
-                        }}
+                      backgroundColor: "transparent",
+                    }}
                         onMouseEnter={(e) => {
                           if (!e.target.disabled) {
                             e.target.style.transform = "translateY(-1px)";
@@ -1332,10 +1332,10 @@ const SchoolsManagement = () => {
                           e.target.style.backgroundColor = "transparent";
                           e.target.style.color = "var(--primary-color)";
                         }}
-                      >
-                        <i className="fas fa-chevron-left me-1"></i>
-                        Previous
-                      </button>
+                  >
+                    <i className="fas fa-chevron-left me-1"></i>
+                    Previous
+                  </button>
 
                       <div className="d-none d-md-flex gap-1">
                         {(() => {
@@ -1434,26 +1434,26 @@ const SchoolsManagement = () => {
 
                       <div className="d-md-none">
                         <small style={{ color: "var(--text-muted)" }}>
-                          Page {currentPage} of {totalPages}
+                    Page {currentPage} of {totalPages}
                         </small>
                       </div>
 
-                      <button
-                        className="btn btn-sm"
-                        onClick={() =>
+                  <button
+                    className="btn btn-sm"
+                    onClick={() =>
                           setCurrentPage((prev) =>
                             Math.min(prev + 1, totalPages)
                           )
-                        }
+                    }
                         disabled={
                           currentPage === totalPages || isActionDisabled()
                         }
-                        style={{
+                    style={{
                           transition: "all 0.2s ease-in-out",
-                          border: "2px solid var(--primary-color)",
+                      border: "2px solid var(--primary-color)",
                           color: "var(--primary-color)",
-                          backgroundColor: "transparent",
-                        }}
+                      backgroundColor: "transparent",
+                    }}
                         onMouseEnter={(e) => {
                           if (!e.target.disabled) {
                             e.target.style.transform = "translateY(-1px)";
@@ -1470,40 +1470,40 @@ const SchoolsManagement = () => {
                           e.target.style.backgroundColor = "transparent";
                           e.target.style.color = "var(--primary-color)";
                         }}
-                      >
-                        Next
-                        <i className="fas fa-chevron-right ms-1"></i>
-                      </button>
-                    </div>
-                  </div>
+                  >
+                    Next
+                    <i className="fas fa-chevron-right ms-1"></i>
+                  </button>
                 </div>
+              </div>
+            </div>
               )}
             </>
           )}
         </div>
-      </div>
+        </div>
 
-      {showFormModal && (
-        <SchoolFormModal
-          school={editingSchool}
-          onClose={() => {
-            setShowFormModal(false);
-            setEditingSchool(null);
-          }}
-          onSave={handleSaveSchool}
-          token={token}
-        />
-      )}
+        {showFormModal && (
+          <SchoolFormModal
+            school={editingSchool}
+            onClose={() => {
+              setShowFormModal(false);
+              setEditingSchool(null);
+            }}
+            onSave={handleSaveSchool}
+            token={token}
+          />
+        )}
 
-      {showDetailsModal && selectedSchool && (
-        <SchoolDetailsModal
-          school={selectedSchool}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedSchool(null);
-          }}
-        />
-      )}
+        {showDetailsModal && selectedSchool && (
+          <SchoolDetailsModal
+            school={selectedSchool}
+            onClose={() => {
+              setShowDetailsModal(false);
+              setSelectedSchool(null);
+            }}
+          />
+        )}
     </div>
   );
 };
